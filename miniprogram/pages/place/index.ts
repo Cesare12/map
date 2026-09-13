@@ -153,6 +153,7 @@ Page({
     try {
       upsertPlace(place);
       wx.setStorageSync("want_to_go_last_category", place.categoryId);
+      wx.setStorageSync("want_to_go_focus_place_id", place.id);
       wx.showToast({ title: lifecycleStatus === "want" ? "种草成功" : "已完成拔草", icon: "success" });
       setTimeout(() => wx.navigateBack(), 450);
     } catch (error) {

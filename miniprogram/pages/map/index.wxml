@@ -12,17 +12,25 @@
   ></map>
 
   <view class="top-panel">
-    <view class="safe-top"></view>
-    <view class="title-row">
-      <view>
-        <view class="eyebrow">我的私人地点</view>
-        <view class="title">想去地图</view>
+    <view class="safe-top" style="height: {{safeTop}}px"></view>
+    <view class="top-toolbar" style="margin-right: {{capsuleReserve}}px">
+      <view class="brand-block">
+        <text class="title">想去地图</text>
+        <text class="result-count">{{filteredPlaces.length}}</text>
       </view>
-      <button class="round-button menu-button" bindtap="openMore">•••</button>
+      <view class="status-control">
+        <button
+          wx:for="{{statusTabs}}"
+          wx:key="id"
+          class="status-option {{item.active ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectStatus"
+        >{{item.name}}</button>
+      </view>
     </view>
 
     <scroll-view class="category-scroll" scroll-x="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
-      <view class="chip-row">
+      <view class="category-row">
         <button
           wx:for="{{categoryTabs}}"
           wx:key="id"
@@ -30,59 +38,42 @@
           data-id="{{item.id}}"
           bindtap="selectCategory"
         >
-          <text>{{item.emoji}}</text>
+          <text class="category-chip-icon">{{item.emoji}}</text>
           <text>{{item.name}}</text>
-          <text class="chip-count">{{item.count}}</text>
         </button>
-        <button class="category-chip add-chip" bindtap="showCategoryCreator">＋ 分类</button>
       </view>
     </scroll-view>
-
-    <view class="filter-row">
-      <button
-        wx:for="{{statusTabs}}"
-        wx:key="id"
-        class="status-chip {{item.active ? 'active' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="selectStatus"
-      >
-        <text class="status-icon">{{item.icon}}</text>
-        <text>{{item.name}}</text>
-        <text class="status-count">{{item.count}}</text>
-      </button>
-      <view class="count-label">{{viewportLabel}}</view>
-    </view>
   </view>
 
-  <view class="map-actions">
-    <button class="map-action" bindtap="moveToMyLocation">
-      <text class="map-action-icon">◎</text>
-      <text>我的位置</text>
-    </button>
-    <button class="map-action" bindtap="showAllPlaces" wx:if="{{filteredPlaces.length}}">
-      <text class="map-action-icon">⌗</text>
-      <text>查看全部</text>
-    </button>
+  <view class="map-actions" style="top: {{mapActionsTop}}px">
+    <button class="map-action" bindtap="moveToMyLocation" aria-label="回到我的位置">⌖</button>
+    <button class="map-action map-action-small" bindtap="showAllPlaces" wx:if="{{filteredPlaces.length}}" aria-label="查看全部地点">全</button>
+    <button class="map-action map-action-small" bindtap="openMore" aria-label="更多操作">•••</button>
   </view>
 
   <view class="empty-state" wx:if="{{emptyTitle}}">
     <view class="empty-icon">{{emptyIcon}}</view>
     <view class="empty-title">{{emptyTitle}}</view>
     <view class="empty-copy">{{emptyCopy}}</view>
-    <button class="empty-action" bindtap="addPlace" wx:if="{{places.length === 0}}">添加第一个地点</button>
   </view>
 
   <view class="bottom-stack">
+    <view class="quick-row" wx:if="{{!selectedPlace}}">
+      <button class="add-button" bindtap="addPlace"><text class="plus">＋</text><text>添加地点</text></button>
+    </view>
+
     <view class="selected-card" wx:if="{{selectedPlace}}">
       <view class="selected-head">
         <view class="selected-tags">
-          <view class="lifecycle-badge {{selectedPlace.lifecycleClass}}">{{selectedPlace.lifecycleIcon}} {{selectedPlace.lifecycleLabel}}</view>
-          <view class="selected-category">{{selectedPlace.categoryEmoji}} {{selectedPlace.categoryName}}</view>
+          <view class="category-mark">{{selectedPlace.categoryEmoji}}</view>
+          <view>
+            <view class="selected-category">{{selectedPlace.categoryName}}</view>
+            <view class="lifecycle-label {{selectedPlace.lifecycleClass}}">{{selectedPlace.lifecycleIcon}} {{selectedPlace.lifecycleLabel}}</view>
+          </view>
         </view>
         <button class="close-button" bindtap="closeSelected">×</button>
       </view>
       <view class="selected-name">{{selectedPlace.name}}</view>
-      <view class="selected-address">{{selectedPlace.address || '未填写地址'}}</view>
       <view class="selected-meta">
         <text>{{selectedPlace.distanceLabel}}</text>
         <text class="dot">·</text>
@@ -90,25 +81,21 @@
         <text wx:if="{{selectedPlace.latestVisitLabel}}" class="dot">·</text>
         <text wx:if="{{selectedPlace.latestVisitLabel}}">{{selectedPlace.latestVisitLabel}}</text>
       </view>
+      <view class="selected-address">{{selectedPlace.address || '未填写地址'}}</view>
+      <view class="selected-note" wx:if="{{selectedPlace.note}}">“{{selectedPlace.note}}”</view>
       <view class="selected-actions">
-        <button class="secondary-action" bindtap="editSelected">编辑</button>
-        <button
-          class="secondary-action"
-          bindtap="wantAgain"
-          wx:if="{{selectedPlace.showWantAgain}}"
-        >再次种草</button>
-        <button class="secondary-action" bindtap="recordSelectedVisit">
-          {{selectedPlace.hasVisited ? '再次拔草' : '完成拔草'}}
-        </button>
-        <button class="primary-action" bindtap="navigateSelected">去这里</button>
+        <button class="quiet-action" bindtap="editSelected">编辑</button>
+        <button class="secondary-action" bindtap="recordSelectedVisit" wx:if="{{selectedPlace.wantToVisit}}">完成拔草</button>
+        <button class="secondary-action" bindtap="wantAgain" wx:else>再次种草</button>
+        <button class="primary-action" bindtap="navigateSelected">导航</button>
       </view>
     </view>
 
-    <view class="nearby-panel" wx:if="{{filteredPlaces.length}}">
+    <view class="nearby-panel" wx:elif="{{filteredPlaces.length}}">
       <view class="nearby-head">
         <view>
           <text class="nearby-title">{{locationReady ? '离我最近' : '已保存地点'}}</text>
-          <text class="nearby-tip">{{locationReady ? '直线距离' : '开启定位后按距离排列'}}</text>
+          <text class="nearby-tip">{{viewportLabel}}</text>
         </view>
         <button class="collapse-button" bindtap="toggleNearby">{{nearbyCollapsed ? '展开' : '收起'}}</button>
       </view>
@@ -117,26 +104,22 @@
           <view
             wx:for="{{nearbyPlaces}}"
             wx:key="id"
-            class="nearby-card {{item.selected ? 'selected' : ''}}"
+            class="nearby-card"
             data-id="{{item.id}}"
             bindtap="selectPlaceCard"
           >
-            <view class="nearby-card-top">
-              <view class="nearby-type {{item.lifecycleClass}}"><text>{{item.lifecycleIcon}}</text><text>{{item.lifecycleLabel}}</text></view>
-              <text class="nearby-distance">{{item.distanceLabel}}</text>
+            <view class="nearby-card-head">
+              <view class="nearby-category">{{item.categoryEmoji}} {{item.categoryName}}</view>
+              <view class="nearby-distance">{{item.distanceLabel}}</view>
             </view>
             <view class="nearby-name">{{item.name}}</view>
-            <view class="nearby-status">{{item.statusLabel}}</view>
+            <view class="nearby-note" wx:if="{{item.note}}">{{item.note}}</view>
+            <view class="nearby-note muted" wx:else>{{item.lifecycleLabel}} · {{item.statusLabel}}</view>
           </view>
         </view>
       </scroll-view>
     </view>
   </view>
-
-  <button class="add-button" bindtap="addPlace">
-    <text class="plus">＋</text>
-    <text>添加地点</text>
-  </button>
 
   <view class="modal-mask" wx:if="{{categoryCreatorVisible}}" bindtap="hideCategoryCreator">
     <view class="modal-card" catchtap="stopEvent">

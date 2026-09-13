@@ -1,11 +1,11 @@
 page {
-  --ink: #24251f;
-  --muted: #77786e;
-  --paper: #f7f4ed;
-  --card: rgba(255, 253, 247, 0.96);
-  --accent: #f5b93f;
-  --accent-dark: #8a5a00;
-  --green: #396a54;
+  --ink: #202923;
+  --muted: #66736b;
+  --paper: #f5f7f5;
+  --card: rgba(255, 255, 255, 0.97);
+  --accent: #246447;
+  --accent-dark: #1f5a3f;
+  --green: #246447;
   color: var(--ink);
   background: var(--paper);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;

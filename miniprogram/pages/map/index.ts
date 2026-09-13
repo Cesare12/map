@@ -1,7 +1,7 @@
 import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setWantToVisit } from "../../utils/storage";
 import { distanceMeters, formatDistance, isInsideRegion } from "../../utils/geo";
 import { formatVisitTime } from "../../utils/format";
-import { ensureMarkerIcon } from "../../utils/marker";
+import { markerIconPath } from "../../utils/marker";
 import { Category, CurrentLocation, Place } from "../../utils/types";
 
 type StatusFilter = "all" | "want" | "visited";
@@ -30,6 +30,9 @@ Page({
     mapLatitude: DEFAULT_CENTER.latitude,
     mapLongitude: DEFAULT_CENTER.longitude,
     mapScale: 12,
+    safeTop: 20,
+    capsuleReserve: 92,
+    mapActionsTop: 126,
     locationReady: false,
     places: [] as Place[],
     filteredPlaces: [] as PlaceView[],
@@ -54,20 +57,67 @@ Page({
   mapContext: null as any,
   currentLocation: null as CurrentLocation | null,
   locationRequested: false,
-  markerIconPath: "",
+  markerIdByPlaceId: new Map<string, number>(),
+  nextMarkerId: 1,
 
   onReady() {
     this.mapContext = wx.createMapContext("mainMap", this);
   },
 
   onLoad() {
-    this.markerIconPath = ensureMarkerIcon();
+    this.initLayoutMetrics();
     this.loadData();
     this.requestLocation(false);
   },
 
+  initLayoutMetrics() {
+    try {
+      const info = typeof wx.getWindowInfo === "function" ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const menu = wx.getMenuButtonBoundingClientRect();
+      this.setData({
+        safeTop: Math.max(Number(info.statusBarHeight) || 20, Number(menu.top) || 0),
+        capsuleReserve: Math.max(88, Number(info.windowWidth) - Number(menu.left) + 8),
+        mapActionsTop: Math.max(122, Number(menu.bottom) + 48)
+      });
+    } catch (_) {
+      // 使用 data 中的保守默认值。
+    }
+  },
+
   onShow() {
-    this.loadData();
+    const focusPlaceId = wx.getStorageSync("want_to_go_focus_place_id");
+    if (!focusPlaceId) {
+      this.loadData();
+      return;
+    }
+    wx.removeStorageSync("want_to_go_focus_place_id");
+    const snapshot = loadSnapshot();
+    const place = snapshot.places.find((item) => item.id === focusPlaceId);
+    if (!place) {
+      this.setData({ places: snapshot.places, categories: snapshot.categories }, () => this.applyFilters());
+      return;
+    }
+    const selectedCategoryId = this.data.selectedCategoryId === "all" || this.data.selectedCategoryId === place.categoryId
+      ? this.data.selectedCategoryId
+      : place.categoryId;
+    this.setData({
+      places: snapshot.places,
+      categories: snapshot.categories,
+      selectedCategoryId,
+      selectedStatus: "all",
+      selectedPlaceId: place.id,
+      mapLatitude: place.latitude,
+      mapLongitude: place.longitude,
+      mapScale: 15
+    }, () => this.applyFilters());
+  },
+
+  markerIdFor(placeId: string): number {
+    const existing = this.markerIdByPlaceId.get(placeId);
+    if (existing) return existing;
+    const markerId = this.nextMarkerId++;
+    this.markerIdByPlaceId.set(placeId, markerId);
+    return markerId;
   },
 
   loadData() {
@@ -129,30 +179,28 @@ Page({
     let filtered = rawPlaces.filter((place) => categoryId === "all" || place.categoryId === categoryId);
     filtered = filtered.filter((place) => {
       if (status === "want") return place.wantToVisit;
-      if (status === "visited") return !place.wantToVisit && place.visits.length > 0;
+      if (status === "visited") return place.visits.length > 0;
       return true;
     });
 
-    const views: PlaceView[] = filtered.map((place, index) => {
+    const views: PlaceView[] = filtered.map((place) => {
       const category = categoryById.get(place.categoryId) || categories[0];
       const distance = this.currentLocation ? distanceMeters(this.currentLocation, place) : null;
       const latestVisit = place.visits.length ? place.visits[place.visits.length - 1] : null;
       const hasVisited = place.visits.length > 0;
       return {
         ...place,
-        markerId: index + 1,
+        markerId: this.markerIdFor(place.id),
         categoryName: category ? category.name : "其他",
         categoryEmoji: category ? category.emoji : "📍",
         categoryColor: category ? category.color : "#8B6F9B",
         distance,
         distanceLabel: formatDistance(distance),
-        statusLabel: place.wantToVisit
-          ? (hasVisited ? `再次种草 · 去过 ${place.visits.length} 次` : "等待拔草")
-          : `已拔草 · 去过 ${place.visits.length} 次`,
+        statusLabel: hasVisited ? `去过 ${place.visits.length} 次` : "等待拔草",
         hasVisited,
         showWantAgain: hasVisited && !place.wantToVisit,
         latestVisitLabel: latestVisit ? formatVisitTime(latestVisit.visitedAt) : "",
-        lifecycleLabel: place.wantToVisit ? "种草" : "拔草",
+        lifecycleLabel: place.wantToVisit ? (hasVisited ? "再次种草" : "种草") : "已拔草",
         lifecycleIcon: place.wantToVisit ? "🌱" : "✓",
         lifecycleClass: place.wantToVisit ? "want" : "visited",
         selected: place.id === this.data.selectedPlaceId
@@ -170,33 +218,10 @@ Page({
       id: place.markerId,
       latitude: place.latitude,
       longitude: place.longitude,
-      iconPath: this.markerIconPath,
-      width: 30,
-      height: 40,
-      alpha: place.hasVisited && !place.wantToVisit ? 0.78 : 1,
-      label: {
-        content: `${place.lifecycleIcon} ${place.categoryEmoji}`,
-        color: place.wantToVisit ? "#76520c" : "#285b46",
-        fontSize: 15,
-        anchorX: -18,
-        anchorY: -44,
-        borderRadius: 14,
-        bgColor: place.wantToVisit ? "#fff0c9" : "#dff1e7",
-        borderWidth: 1,
-        borderColor: place.wantToVisit ? "#efbd54" : "#70a58c",
-        padding: 6
-      },
-      callout: {
-        content: `${place.name}\n${place.distanceLabel}`,
-        display: place.selected ? "ALWAYS" : "BYCLICK",
-        padding: 8,
-        borderRadius: 8,
-        bgColor: "#fffdf7",
-        color: "#24251f",
-        borderWidth: 1,
-        borderColor: "#d8d2c5",
-        fontSize: 12
-      }
+      iconPath: markerIconPath(place.categoryId, place.wantToVisit),
+      width: place.selected ? 36 : 30,
+      height: place.selected ? 44 : 37,
+      anchor: { x: 0.5, y: 1 }
     }));
 
     const categoryTabs = [
@@ -209,7 +234,7 @@ Page({
     ];
     const scopedPlaces = rawPlaces.filter((place) => categoryId === "all" || place.categoryId === categoryId);
     const wantCount = scopedPlaces.filter((place) => place.wantToVisit).length;
-    const visitedCount = scopedPlaces.filter((place) => !place.wantToVisit && place.visits.length > 0).length;
+    const visitedCount = scopedPlaces.filter((place) => place.visits.length > 0).length;
     const statusTabs = [
       { id: "all", icon: "◉", name: "全部", count: scopedPlaces.length, active: status === "all" },
       { id: "want", icon: "🌱", name: "种草", count: wantCount, active: status === "want" },
@@ -262,13 +287,13 @@ Page({
   },
 
   selectPlace(id: string, center: boolean) {
-    this.setData({ selectedPlaceId: id }, () => {
-      this.applyFilters();
-      if (center) {
-        const place = (this.data.filteredPlaces as PlaceView[]).find((item) => item.id === id);
-        if (place) this.setData({ mapLatitude: place.latitude, mapLongitude: place.longitude, mapScale: Math.max(14, this.data.mapScale) });
-      }
-    });
+    const place = (this.data.filteredPlaces as PlaceView[]).find((item) => item.id === id);
+    const position = center && place ? {
+      mapLatitude: place.latitude,
+      mapLongitude: place.longitude,
+      mapScale: Math.max(14, this.data.mapScale)
+    } : {};
+    this.setData({ selectedPlaceId: id, ...position }, () => this.applyFilters());
   },
 
   closeSelected() {
@@ -291,7 +316,7 @@ Page({
         if (String(error.errMsg || "").includes("cancel")) return;
         wx.showModal({
           title: "暂时不能选择地点",
-          content: "请检查位置权限和后台接口设置，然后再试一次。",
+          content: "请检查微信的位置权限，然后再试一次。",
           showCancel: false
         });
       }
@@ -351,18 +376,7 @@ Page({
   },
 
   moveToMyLocation() {
-    if (!this.currentLocation) {
-      this.requestLocation(true);
-      return;
-    }
-    if (this.mapContext && typeof this.mapContext.moveToLocation === "function") {
-      this.mapContext.moveToLocation({
-        latitude: this.currentLocation.latitude,
-        longitude: this.currentLocation.longitude
-      });
-    } else {
-      this.setData({ mapLatitude: this.currentLocation.latitude, mapLongitude: this.currentLocation.longitude, mapScale: 14 });
-    }
+    this.requestLocation(true);
   },
 
   showAllPlaces() {

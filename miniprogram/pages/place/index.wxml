@@ -57,12 +57,12 @@
   </view>
 
   <view class="section">
-    <view class="section-label">简单记两句 <text class="optional">选填</text></view>
+    <view class="section-label">地点笔记 <text class="optional">选填</text></view>
     <textarea
       class="note-input"
       value="{{note}}"
       maxlength="300"
-      placeholder="{{lifecycleStatus === 'want' ? '为什么种草、想吃什么，或者其他提醒……' : '这次体验怎么样、推荐什么、是否会再去……'}}"
+      placeholder="想去的理由、推荐内容，或者其他值得记住的事……"
       auto-height
       bindinput="onNoteInput"
     ></textarea>

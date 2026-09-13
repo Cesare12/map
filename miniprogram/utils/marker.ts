@@ -1,13 +1,11 @@
-// 地图标记要求 iconPath。实际视觉由 marker.label 中的分类 emoji 提供，
-// 这里在小程序沙盒中生成一个透明底图，避免为每个分类打包重复图片。
-const TRANSPARENT_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const BUILT_IN_MARKER_KEYS = new Set(["food", "pet", "car", "other"]);
 
-export function ensureMarkerIcon(): string {
-  const path = `${wx.env.USER_DATA_PATH}/want-to-go-marker.png`;
-  try {
-    wx.getFileSystemManager().accessSync(path);
-  } catch (_) {
-    wx.getFileSystemManager().writeFileSync(path, TRANSPARENT_PNG, "base64");
-  }
-  return path;
+/**
+ * 地图直接使用代码包中的可见图钉，避免运行时占位图在不同设备上被放大成色块。
+ * 自定义分类复用“其他”图标；分类名称仍会在筛选栏和地点卡片中完整显示。
+ */
+export function markerIconPath(categoryId: string, wantToVisit: boolean): string {
+  const category = BUILT_IN_MARKER_KEYS.has(categoryId) ? categoryId : "other";
+  const state = wantToVisit ? "want" : "visited";
+  return `/assets/markers/${category}-${state}.png`;
 }

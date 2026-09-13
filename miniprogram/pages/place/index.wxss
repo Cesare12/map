@@ -2,7 +2,7 @@
   min-height: 100vh;
   box-sizing: border-box;
   padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
-  background: #f7f4ed;
+  background: #f5f7f5;
 }
 
 .nav-bar {
@@ -24,8 +24,8 @@
   height: 72rpx;
   line-height: 64rpx;
   border-radius: 50%;
-  background: #ebe8e0;
-  color: #2d2e28;
+  background: #e8eeea;
+  color: #246447;
   font-size: 54rpx;
   font-weight: 300;
 }
@@ -39,12 +39,12 @@
   display: flex;
   align-items: flex-start;
   gap: 18rpx;
-  margin: 18rpx 24rpx 30rpx;
-  padding: 30rpx 26rpx;
-  border-radius: 30rpx;
-  background: #24251f;
-  color: white;
-  box-shadow: 0 16rpx 45rpx rgba(41, 41, 35, 0.18);
+  margin: 12rpx 24rpx 22rpx;
+  padding: 27rpx 25rpx;
+  border: 1rpx solid #e3e9e4;
+  border-radius: 26rpx;
+  background: #fff;
+  color: #202923;
 }
 
 .hero-pin {
@@ -55,7 +55,7 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 22rpx;
-  background: #f5b93f;
+  background: #eaf3ed;
   font-size: 35rpx;
 }
 
@@ -66,18 +66,18 @@
 
 .name-input {
   height: 58rpx;
-  color: white;
+  color: #202923;
   font-size: 34rpx;
   font-weight: 720;
 }
 
 .name-input::placeholder {
-  color: rgba(255, 255, 255, 0.55);
+  color: #9aa49d;
 }
 
 .address {
   margin-top: 6rpx;
-  color: rgba(255, 255, 255, 0.62);
+  color: #758078;
   font-size: 22rpx;
   line-height: 1.5;
 }
@@ -89,17 +89,17 @@
   height: 53rpx;
   line-height: 53rpx;
   border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
+  background: #eaf3ed;
+  color: #246447;
   font-size: 21rpx;
 }
 
 .section {
-  margin: 0 24rpx 22rpx;
-  padding: 29rpx 27rpx;
-  border-radius: 27rpx;
-  background: #fffdf7;
-  box-shadow: 0 7rpx 28rpx rgba(54, 52, 43, 0.06);
+  margin: 0 24rpx 16rpx;
+  padding: 27rpx 25rpx;
+  border: 1rpx solid #e3e9e4;
+  border-radius: 26rpx;
+  background: #fff;
 }
 
 .section-label {
@@ -131,15 +131,15 @@
   height: 76rpx;
   border: 2rpx solid transparent;
   border-radius: 21rpx;
-  background: #f0eee7;
-  color: #55564e;
+  background: #f1f4f2;
+  color: #59655d;
   font-size: 24rpx;
 }
 
 .category-option.active {
-  border-color: #24251f;
-  background: #fff8e7;
-  color: #24251f;
+  border-color: #246447;
+  background: #eaf3ed;
+  color: #1f5a3f;
   font-weight: 650;
 }
 
@@ -163,21 +163,21 @@
   height: 104rpx;
   border: 2rpx solid transparent;
   border-radius: 22rpx;
-  background: #f0eee7;
-  color: #5e5f57;
+  background: #f1f4f2;
+  color: #59655d;
   text-align: left;
 }
 
 .lifecycle-option.want.active {
-  border-color: #efbd54;
-  background: #fff0c9;
-  color: #76520c;
+  border-color: #246447;
+  background: #eaf3ed;
+  color: #1f5a3f;
 }
 
 .lifecycle-option.visited.active {
-  border-color: #70a58c;
-  background: #dff1e7;
-  color: #285b46;
+  border-color: #246447;
+  background: #eaf3ed;
+  color: #1f5a3f;
 }
 
 .lifecycle-icon {
@@ -208,8 +208,8 @@
   min-height: 150rpx;
   padding: 19rpx;
   border-radius: 19rpx;
-  background: #f2f0e9;
-  color: #30312b;
+  background: #f1f4f2;
+  color: #202923;
   font-size: 25rpx;
   line-height: 1.55;
 }
@@ -230,11 +230,11 @@
   height: 91rpx;
   line-height: 91rpx;
   border-radius: 25rpx;
-  background: #f5b93f;
-  color: #302306;
+  background: #246447;
+  color: #fff;
   font-size: 29rpx;
   font-weight: 750;
-  box-shadow: 0 12rpx 34rpx rgba(113, 79, 12, 0.18);
+  box-shadow: 0 10rpx 30rpx rgba(20, 68, 43, 0.20);
 }
 
 .delete-button {
