@@ -31,7 +31,7 @@
         data-id="{{item.id}}"
         bindtap="selectCategory"
       >
-        <text class="category-emoji">{{item.emoji}}</text>
+        <image class="category-emoji" src="{{item.iconPath}}" mode="aspectFit" />
         <text>{{item.name}}</text>
       </button>
     </view>

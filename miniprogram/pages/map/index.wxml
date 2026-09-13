@@ -38,7 +38,7 @@
           data-id="{{item.id}}"
           bindtap="selectCategory"
         >
-          <text class="category-chip-icon">{{item.emoji}}</text>
+          <image class="category-chip-icon" src="{{item.iconPath}}" mode="aspectFit" />
           <text>{{item.name}}</text>
         </button>
       </view>
@@ -65,7 +65,7 @@
     <view class="selected-card" wx:if="{{selectedPlace}}">
       <view class="selected-head">
         <view class="selected-tags">
-          <view class="category-mark">{{selectedPlace.categoryEmoji}}</view>
+          <view class="category-mark"><image src="{{selectedPlace.categoryIconPath}}" mode="aspectFit" /></view>
           <view>
             <view class="selected-category">{{selectedPlace.categoryName}}</view>
             <view class="lifecycle-label {{selectedPlace.lifecycleClass}}">{{selectedPlace.lifecycleIcon}} {{selectedPlace.lifecycleLabel}}</view>
@@ -109,7 +109,7 @@
             bindtap="selectPlaceCard"
           >
             <view class="nearby-card-head">
-              <view class="nearby-category">{{item.categoryEmoji}} {{item.categoryName}}</view>
+              <view class="nearby-category"><image src="{{item.categoryIconPath}}" mode="aspectFit" />{{item.categoryName}}</view>
               <view class="nearby-distance">{{item.distanceLabel}}</view>
             </view>
             <view class="nearby-name">{{item.name}}</view>
@@ -123,20 +123,37 @@
 
   <view class="modal-mask" wx:if="{{categoryCreatorVisible}}" bindtap="hideCategoryCreator">
     <view class="modal-card" catchtap="stopEvent">
-      <view class="modal-title">新建分类</view>
-      <view class="modal-copy">例如：咖啡、露营、修车</view>
+      <view class="modal-title">{{categoryEditorMode == 'create' ? '新建分类' : '修改分类图标'}}</view>
+      <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">例如：咖啡、露营、修车</view>
+      <view class="modal-copy" wx:else>“{{newCategoryName}}”在顶部和地图上的图标会一起更新</view>
       <input
+        wx:if="{{categoryEditorMode == 'create'}}"
         class="category-input"
         value="{{newCategoryName}}"
         maxlength="8"
         placeholder="输入分类名称"
         focus="{{categoryCreatorVisible}}"
         bindinput="onCategoryNameInput"
-        bindconfirm="createCategory"
+        bindconfirm="saveCategoryEditor"
       />
+      <view class="icon-picker-label">选择分类图标</view>
+      <scroll-view class="icon-picker-scroll" scroll-y="{{true}}" enhanced="{{true}}">
+        <view class="icon-picker-grid">
+          <button
+            wx:for="{{categoryIconOptions}}"
+            wx:key="key"
+            class="icon-option {{item.active ? 'active' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="selectCategoryIcon"
+          >
+            <image src="{{item.iconPath}}" mode="aspectFit" />
+            <text>{{item.name}}</text>
+          </button>
+        </view>
+      </scroll-view>
       <view class="modal-actions">
         <button class="modal-cancel" bindtap="hideCategoryCreator">取消</button>
-        <button class="modal-confirm" bindtap="createCategory">创建</button>
+        <button class="modal-confirm" bindtap="saveCategoryEditor">{{categoryEditorMode == 'create' ? '创建' : '保存'}}</button>
       </view>
     </view>
   </view>

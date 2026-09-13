@@ -144,7 +144,8 @@
 }
 
 .category-emoji {
-  font-size: 29rpx;
+  width: 31rpx;
+  height: 31rpx;
 }
 
 .lifecycle-grid {

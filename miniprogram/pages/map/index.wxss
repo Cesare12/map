@@ -131,7 +131,8 @@
 }
 
 .category-chip-icon {
-  font-size: 23rpx;
+  width: 27rpx;
+  height: 27rpx;
 }
 
 .map-actions {
@@ -261,7 +262,11 @@
   height: 66rpx;
   border-radius: 21rpx;
   background: #eaf3ed;
-  font-size: 30rpx;
+}
+
+.category-mark image {
+  width: 37rpx;
+  height: 37rpx;
 }
 
 .selected-category {
@@ -430,6 +435,17 @@
   font-size: 18rpx;
 }
 
+.nearby-category {
+  display: flex;
+  align-items: center;
+  gap: 7rpx;
+}
+
+.nearby-category image {
+  width: 24rpx;
+  height: 24rpx;
+}
+
 .nearby-distance {
   color: #246447;
 }
@@ -497,6 +513,54 @@
   background: #f1f4f2;
   color: #202923;
   font-size: 27rpx;
+}
+
+.icon-picker-label {
+  margin-top: 24rpx;
+  color: #46534b;
+  font-size: 22rpx;
+  font-weight: 650;
+}
+
+.icon-picker-scroll {
+  height: 300rpx;
+  margin-top: 14rpx;
+}
+
+.icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10rpx;
+  padding: 2rpx;
+}
+
+.icon-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  box-sizing: border-box;
+  height: 91rpx;
+  margin: 0;
+  padding: 7rpx;
+  border: 2rpx solid transparent;
+  border-radius: 17rpx;
+  background: #f1f4f2;
+  color: #66736b;
+  font-size: 18rpx;
+  line-height: 1.1;
+}
+
+.icon-option.active {
+  border-color: #246447;
+  background: #eaf3ed;
+  color: #1f5a3f;
+}
+
+.icon-option image {
+  width: 34rpx;
+  height: 34rpx;
 }
 
 .modal-actions {

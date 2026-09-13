@@ -1,12 +1,13 @@
 import { Category, Place, Snapshot, Visit } from "./types";
+import { normalizeCategoryIconKey } from "./category-icon";
 
 const STORAGE_KEY = "want_to_go_map_snapshot_v1";
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: "food", name: "美食", emoji: "🍜", color: "#E36B4D", builtIn: true },
-  { id: "pet", name: "宠物", emoji: "🐾", color: "#678B72", builtIn: true },
-  { id: "car", name: "洗车", emoji: "🚗", color: "#527DAA", builtIn: true },
-  { id: "other", name: "其他", emoji: "📍", color: "#8B6F9B", builtIn: true }
+  { id: "food", name: "美食", emoji: "🍜", iconKey: "food", color: "#E36B4D", builtIn: true },
+  { id: "pet", name: "宠物", emoji: "🐾", iconKey: "pet", color: "#678B72", builtIn: true },
+  { id: "car", name: "洗车", emoji: "🚗", iconKey: "car", color: "#527DAA", builtIn: true },
+  { id: "other", name: "其他", emoji: "📍", iconKey: "other", color: "#8B6F9B", builtIn: true }
 ];
 
 function cloneDefaults(): Category[] {
@@ -60,7 +61,10 @@ export function loadSnapshot(): Snapshot {
       ? raw.categories.filter((item: any) =>
           item && typeof item.id === "string" && typeof item.name === "string" &&
           typeof item.emoji === "string" && typeof item.color === "string"
-        )
+        ).map((item: any) => ({
+          ...item,
+          iconKey: normalizeCategoryIconKey(item.iconKey || item.id)
+        }))
       : [];
     const byId = new Map<string, Category>();
     cloneDefaults().concat(customCategories).forEach((item) => byId.set(item.id, item));
@@ -85,7 +89,7 @@ export function createId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function addCategory(name: string, emoji = "🏷️"): Category {
+export function addCategory(name: string, iconKey = "other", emoji = "🏷️"): Category {
   const snapshot = loadSnapshot();
   const trimmed = name.trim().slice(0, 8);
   const duplicate = snapshot.categories.find((item) => item.name === trimmed);
@@ -95,10 +99,20 @@ export function addCategory(name: string, emoji = "🏷️"): Category {
     id: createId("category"),
     name: trimmed,
     emoji,
+    iconKey: normalizeCategoryIconKey(iconKey),
     color: colors[snapshot.categories.length % colors.length],
     builtIn: false
   };
   snapshot.categories.push(category);
+  saveSnapshot(snapshot);
+  return category;
+}
+
+export function setCategoryIcon(categoryId: string, iconKey: string): Category | null {
+  const snapshot = loadSnapshot();
+  const category = snapshot.categories.find((item) => item.id === categoryId);
+  if (!category) return null;
+  category.iconKey = normalizeCategoryIconKey(iconKey);
   saveSnapshot(snapshot);
   return category;
 }

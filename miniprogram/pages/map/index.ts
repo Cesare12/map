@@ -1,7 +1,8 @@
-import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setWantToVisit } from "../../utils/storage";
+import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setCategoryIcon, setWantToVisit } from "../../utils/storage";
 import { distanceMeters, formatDistance, isInsideRegion } from "../../utils/geo";
 import { formatVisitTime } from "../../utils/format";
 import { markerIconPath } from "../../utils/marker";
+import { CATEGORY_ICON_OPTIONS, categoryIconPath } from "../../utils/category-icon";
 import { Category, CurrentLocation, Place } from "../../utils/types";
 
 type StatusFilter = "all" | "want" | "visited";
@@ -10,6 +11,8 @@ interface PlaceView extends Place {
   markerId: number;
   categoryName: string;
   categoryEmoji: string;
+  categoryIconKey: string;
+  categoryIconPath: string;
   categoryColor: string;
   distance: number | null;
   distanceLabel: string;
@@ -51,7 +54,15 @@ Page({
     emptyIcon: "📍",
     nearbyCollapsed: false,
     categoryCreatorVisible: false,
-    newCategoryName: ""
+    categoryEditorMode: "create" as "create" | "icon",
+    editingCategoryId: "",
+    newCategoryName: "",
+    newCategoryIconKey: "other",
+    categoryIconOptions: CATEGORY_ICON_OPTIONS.map((item) => ({
+      ...item,
+      iconPath: categoryIconPath(item.key),
+      active: item.key === "other"
+    }))
   },
 
   mapContext: null as any,
@@ -193,6 +204,8 @@ Page({
         markerId: this.markerIdFor(place.id),
         categoryName: category ? category.name : "其他",
         categoryEmoji: category ? category.emoji : "📍",
+        categoryIconKey: category ? category.iconKey : "other",
+        categoryIconPath: categoryIconPath(category ? category.iconKey : "other"),
         categoryColor: category ? category.color : "#8B6F9B",
         distance,
         distanceLabel: formatDistance(distance),
@@ -218,16 +231,17 @@ Page({
       id: place.markerId,
       latitude: place.latitude,
       longitude: place.longitude,
-      iconPath: markerIconPath(place.categoryId, place.wantToVisit),
+      iconPath: markerIconPath(place.categoryIconKey, place.wantToVisit),
       width: place.selected ? 36 : 30,
       height: place.selected ? 44 : 37,
       anchor: { x: 0.5, y: 1 }
     }));
 
     const categoryTabs = [
-      { id: "all", name: "全部", emoji: "◉", count: rawPlaces.length, active: categoryId === "all" },
+      { id: "all", name: "全部", iconPath: "/assets/category-icons/all.png", count: rawPlaces.length, active: categoryId === "all" },
       ...categories.map((category) => ({
         ...category,
+        iconPath: categoryIconPath(category.iconKey),
         count: rawPlaces.filter((place) => place.categoryId === category.id).length,
         active: category.id === categoryId
       }))
@@ -417,24 +431,70 @@ Page({
   },
 
   showCategoryCreator() {
-    this.setData({ categoryCreatorVisible: true, newCategoryName: "" });
+    this.setData({
+      categoryCreatorVisible: true,
+      categoryEditorMode: "create",
+      editingCategoryId: "",
+      newCategoryName: "",
+      newCategoryIconKey: "other"
+    }, () => this.refreshCategoryIconOptions());
+  },
+
+  showCurrentCategoryIconEditor() {
+    const categoryId = this.data.selectedCategoryId;
+    if (categoryId === "all") {
+      wx.showToast({ title: "请先选择一个分类", icon: "none" });
+      return;
+    }
+    const category = (this.data.categories as Category[]).find((item) => item.id === categoryId);
+    if (!category) return;
+    this.setData({
+      categoryCreatorVisible: true,
+      categoryEditorMode: "icon",
+      editingCategoryId: category.id,
+      newCategoryName: category.name,
+      newCategoryIconKey: category.iconKey
+    }, () => this.refreshCategoryIconOptions());
   },
 
   hideCategoryCreator() {
-    this.setData({ categoryCreatorVisible: false, newCategoryName: "" });
+    this.setData({ categoryCreatorVisible: false, editingCategoryId: "", newCategoryName: "" });
+  },
+
+  refreshCategoryIconOptions() {
+    const selected = this.data.newCategoryIconKey;
+    this.setData({
+      categoryIconOptions: CATEGORY_ICON_OPTIONS.map((item) => ({
+        ...item,
+        iconPath: categoryIconPath(item.key),
+        active: item.key === selected
+      }))
+    });
+  },
+
+  selectCategoryIcon(event: any) {
+    this.setData({ newCategoryIconKey: event.currentTarget.dataset.key }, () => this.refreshCategoryIconOptions());
   },
 
   onCategoryNameInput(event: any) {
     this.setData({ newCategoryName: event.detail.value });
   },
 
-  createCategory() {
+  saveCategoryEditor() {
+    if (this.data.categoryEditorMode === "icon") {
+      const category = setCategoryIcon(this.data.editingCategoryId, this.data.newCategoryIconKey);
+      if (!category) return;
+      this.hideCategoryCreator();
+      this.loadData();
+      wx.showToast({ title: "分类图标已更新", icon: "success" });
+      return;
+    }
     const name = String(this.data.newCategoryName || "").trim();
     if (!name) {
       wx.showToast({ title: "请输入分类名称", icon: "none" });
       return;
     }
-    const category = addCategory(name);
+    const category = addCategory(name, this.data.newCategoryIconKey);
     this.hideCategoryCreator();
     this.loadData();
     this.setData({ selectedCategoryId: category.id }, () => this.applyFilters());
@@ -444,10 +504,11 @@ Page({
 
   openMore() {
     wx.showActionSheet({
-      itemList: ["新增分类", "复制本地备份"],
+      itemList: ["新增分类", "修改当前分类图标", "复制本地备份"],
       success: (result: any) => {
         if (result.tapIndex === 0) this.showCategoryCreator();
-        if (result.tapIndex === 1) this.copyBackup();
+        if (result.tapIndex === 1) this.showCurrentCategoryIconEditor();
+        if (result.tapIndex === 2) this.copyBackup();
       }
     });
   },

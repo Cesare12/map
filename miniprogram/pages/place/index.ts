@@ -1,5 +1,6 @@
 import { createId, loadSnapshot, removePlace, upsertPlace } from "../../utils/storage";
 import { Category, Place, Visit } from "../../utils/types";
+import { categoryIconPath } from "../../utils/category-icon";
 
 type LifecycleStatus = "want" | "visited";
 
@@ -75,6 +76,7 @@ Page({
     this.setData({
       categoryOptions: (this.data.categories as Category[]).map((item) => ({
         ...item,
+        iconPath: categoryIconPath(item.iconKey),
         active: item.id === this.data.categoryId
       }))
     });
