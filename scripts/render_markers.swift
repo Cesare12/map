@@ -96,8 +96,9 @@ func pngData(_ image: NSImage) -> Data {
   return png
 }
 func drawCheckBadge() {
-  fill(circle(57, 69, 11), green)
-  let check = NSBezierPath(); check.move(to: NSPoint(x: 52, y: 69)); check.line(to: NSPoint(x: 56, y: 65)); check.line(to: NSPoint(x: 63, y: 73)); stroke(check, white, 3)
+  let badge = circle(57, 69, 11)
+  fill(badge, white); stroke(badge, green, 2.5)
+  let check = NSBezierPath(); check.move(to: NSPoint(x: 52, y: 69)); check.line(to: NSPoint(x: 56, y: 65)); check.line(to: NSPoint(x: 63, y: 73)); stroke(check, green, 3)
 }
 
 for kind in Kind.allCases {
@@ -106,9 +107,10 @@ for kind in Kind.allCases {
     image.lockFocus()
     NSGraphicsContext.current?.imageInterpolation = .high
     let pin = markerPath()
-    if state == .want { fill(pin, green); stroke(pin, white, 3) }
-    else { fill(pin, white); stroke(pin, green, 3) }
-    drawGlyph(kind, color: state == .want ? white : green)
+    // 遵循 Apple 的完成状态语言：未完成保持描边，完成后使用实心并明确显示勾。
+    if state == .want { fill(pin, white); stroke(pin, green, 3) }
+    else { fill(pin, green); stroke(pin, white, 3) }
+    drawGlyph(kind, color: state == .want ? green : white)
     if state == .visited { drawCheckBadge() }
     image.unlockFocus()
     try pngData(image).write(to: output.appendingPathComponent("\(kind.rawValue)-\(state.rawValue).png"))
