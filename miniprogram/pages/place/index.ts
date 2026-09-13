@@ -1,5 +1,7 @@
 import { createId, loadSnapshot, removePlace, upsertPlace } from "../../utils/storage";
-import { Category, Place } from "../../utils/types";
+import { Category, Place, Visit } from "../../utils/types";
+
+type LifecycleStatus = "want" | "visited";
 
 Page({
   data: {
@@ -13,6 +15,9 @@ Page({
     categoryOptions: [] as any[],
     categories: [] as Category[],
     wantToVisit: true,
+    lifecycleStatus: "want" as LifecycleStatus,
+    initialLifecycleStatus: "want" as LifecycleStatus,
+    lifecycleOptions: [] as any[],
     note: "",
     visits: [] as any[],
     createdAt: 0
@@ -36,11 +41,16 @@ Page({
         longitude: place.longitude,
         categoryId: place.categoryId,
         wantToVisit: place.wantToVisit,
+        lifecycleStatus: place.wantToVisit ? "want" : "visited",
+        initialLifecycleStatus: place.wantToVisit ? "want" : "visited",
         note: place.note,
         visits: place.visits,
         createdAt: place.createdAt,
         categories: snapshot.categories
-      }, () => this.refreshCategories());
+      }, () => {
+        this.refreshCategories();
+        this.refreshLifecycleOptions();
+      });
       return;
     }
 
@@ -55,7 +65,10 @@ Page({
       longitude: Number(options.longitude) || 0,
       categoryId: snapshot.categories.some((item) => item.id === initialCategory) ? initialCategory : "food",
       categories: snapshot.categories
-    }, () => this.refreshCategories());
+    }, () => {
+      this.refreshCategories();
+      this.refreshLifecycleOptions();
+    });
   },
 
   refreshCategories() {
@@ -75,8 +88,19 @@ Page({
     this.setData({ note: event.detail.value });
   },
 
-  onWantChange(event: any) {
-    this.setData({ wantToVisit: event.detail.value });
+  refreshLifecycleOptions() {
+    const status = this.data.lifecycleStatus as LifecycleStatus;
+    this.setData({
+      lifecycleOptions: [
+        { id: "want", icon: "🌱", title: "种草", copy: "想去，等待拔草", active: status === "want" },
+        { id: "visited", icon: "✓", title: "拔草", copy: "已经到访过", active: status === "visited" }
+      ]
+    });
+  },
+
+  selectLifecycle(event: any) {
+    const lifecycleStatus = event.currentTarget.dataset.id as LifecycleStatus;
+    this.setData({ lifecycleStatus, wantToVisit: lifecycleStatus === "want" }, () => this.refreshLifecycleOptions());
   },
 
   selectCategory(event: any) {
@@ -107,6 +131,12 @@ Page({
       return;
     }
     const now = Date.now();
+    const lifecycleStatus = this.data.lifecycleStatus as LifecycleStatus;
+    const visits = ([...(this.data.visits || [])]) as Visit[];
+    const startedAsWant = (this.data.initialLifecycleStatus as LifecycleStatus) === "want";
+    if (lifecycleStatus === "visited" && (!this.data.editing || startedAsWant)) {
+      visits.push({ id: createId("visit"), visitedAt: now, note: "" });
+    }
     const place: Place = {
       id: this.data.id || createId("place"),
       name,
@@ -114,8 +144,8 @@ Page({
       latitude: Number(this.data.latitude),
       longitude: Number(this.data.longitude),
       categoryId: this.data.categoryId,
-      wantToVisit: Boolean(this.data.wantToVisit),
-      visits: this.data.visits || [],
+      wantToVisit: lifecycleStatus === "want",
+      visits,
       note: String(this.data.note || "").trim(),
       createdAt: this.data.createdAt || now,
       updatedAt: now
@@ -123,7 +153,7 @@ Page({
     try {
       upsertPlace(place);
       wx.setStorageSync("want_to_go_last_category", place.categoryId);
-      wx.showToast({ title: "已保存", icon: "success" });
+      wx.showToast({ title: lifecycleStatus === "want" ? "种草成功" : "已完成拔草", icon: "success" });
       setTimeout(() => wx.navigateBack(), 450);
     } catch (error) {
       console.error("保存地点失败", error);

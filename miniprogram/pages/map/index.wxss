@@ -128,14 +128,31 @@
 }
 
 .status-chip {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
   margin: 0;
-  padding: 0 17rpx;
+  padding: 0 14rpx;
   height: 51rpx;
   line-height: 51rpx;
   border-radius: 25rpx;
   background: rgba(255, 253, 247, 0.84);
   color: #77786e;
   font-size: 22rpx;
+}
+
+.status-icon {
+  font-size: 20rpx;
+}
+
+.status-count {
+  min-width: 24rpx;
+  color: #92938a;
+  font-size: 18rpx;
+}
+
+.status-chip.active .status-count {
+  color: #785616;
 }
 
 .status-chip.active {
@@ -255,6 +272,38 @@
   font-size: 22rpx;
 }
 
+.selected-tags {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.lifecycle-badge,
+.nearby-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5rpx;
+  border-radius: 999rpx;
+  font-weight: 650;
+}
+
+.lifecycle-badge {
+  padding: 6rpx 13rpx;
+  font-size: 21rpx;
+}
+
+.lifecycle-badge.want,
+.nearby-type.want {
+  background: #fff0c9;
+  color: #76520c;
+}
+
+.lifecycle-badge.visited,
+.nearby-type.visited {
+  background: #dff1e7;
+  color: #285b46;
+}
+
 .close-button {
   margin: -12rpx -10rpx 0 0;
   padding: 0;
@@ -372,8 +421,9 @@
   background: #fffaf0;
 }
 
-.nearby-emoji {
-  font-size: 28rpx;
+.nearby-type {
+  padding: 4rpx 9rpx;
+  font-size: 18rpx;
 }
 
 .nearby-distance {

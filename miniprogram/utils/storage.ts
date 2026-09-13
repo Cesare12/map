@@ -32,6 +32,7 @@ function sanitizePlace(value: any, categoryIds: Set<string>): Place | null {
   if (!value || typeof value.id !== "string" || typeof value.name !== "string") return null;
   if (!validNumber(value.latitude) || !validNumber(value.longitude)) return null;
   const now = Date.now();
+  const visits = sanitizeVisits(value.visits);
   return {
     id: value.id,
     name: value.name.trim() || "未命名地点",
@@ -39,8 +40,10 @@ function sanitizePlace(value: any, categoryIds: Set<string>): Place | null {
     latitude: value.latitude,
     longitude: value.longitude,
     categoryId: categoryIds.has(value.categoryId) ? value.categoryId : "other",
-    wantToVisit: value.wantToVisit !== false,
-    visits: sanitizeVisits(value.visits),
+    // 旧版本可能留下“既不想去、也没有到访记录”的第三种状态。
+    // 迁移时归入种草，保证每个地点都明确属于种草或拔草。
+    wantToVisit: value.wantToVisit !== false || visits.length === 0,
+    visits,
     note: typeof value.note === "string" ? value.note : "",
     createdAt: validNumber(value.createdAt) ? value.createdAt : now,
     updatedAt: validNumber(value.updatedAt) ? value.updatedAt : now

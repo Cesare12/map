@@ -102,11 +102,6 @@
   box-shadow: 0 7rpx 28rpx rgba(54, 52, 43, 0.06);
 }
 
-.compact-section {
-  padding-top: 25rpx;
-  padding-bottom: 25rpx;
-}
-
 .section-label {
   margin-bottom: 22rpx;
   font-size: 26rpx;
@@ -152,21 +147,59 @@
   font-size: 29rpx;
 }
 
-.switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.lifecycle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14rpx;
 }
 
-.switch-title {
-  font-size: 27rpx;
+.lifecycle-option {
+  display: flex;
+  align-items: center;
+  gap: 13rpx;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 18rpx;
+  height: 104rpx;
+  border: 2rpx solid transparent;
+  border-radius: 22rpx;
+  background: #f0eee7;
+  color: #5e5f57;
+  text-align: left;
+}
+
+.lifecycle-option.want.active {
+  border-color: #efbd54;
+  background: #fff0c9;
+  color: #76520c;
+}
+
+.lifecycle-option.visited.active {
+  border-color: #70a58c;
+  background: #dff1e7;
+  color: #285b46;
+}
+
+.lifecycle-icon {
+  flex: none;
+  font-size: 32rpx;
+}
+
+.lifecycle-copy {
+  min-width: 0;
+}
+
+.lifecycle-title {
+  font-size: 25rpx;
+  line-height: 1.2;
   font-weight: 700;
 }
 
-.switch-copy {
-  margin-top: 7rpx;
-  color: #8d8e85;
-  font-size: 21rpx;
+.lifecycle-description {
+  margin-top: 5rpx;
+  color: #8b8c83;
+  font-size: 18rpx;
+  line-height: 1.2;
 }
 
 .note-input {

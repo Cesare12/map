@@ -37,13 +37,22 @@
     </view>
   </view>
 
-  <view class="section compact-section">
-    <view class="switch-row">
-      <view>
-        <view class="switch-title">我还想去</view>
-        <view class="switch-copy">在“待去”筛选中显示这个地点</view>
-      </view>
-      <switch checked="{{wantToVisit}}" color="#396a54" bindchange="onWantChange" />
+  <view class="section">
+    <view class="section-label">现在是哪种状态</view>
+    <view class="lifecycle-grid">
+      <button
+        wx:for="{{lifecycleOptions}}"
+        wx:key="id"
+        class="lifecycle-option {{item.id}} {{item.active ? 'active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectLifecycle"
+      >
+        <text class="lifecycle-icon">{{item.icon}}</text>
+        <view class="lifecycle-copy">
+          <view class="lifecycle-title">{{item.title}}</view>
+          <view class="lifecycle-description">{{item.copy}}</view>
+        </view>
+      </button>
     </view>
   </view>
 
@@ -53,7 +62,7 @@
       class="note-input"
       value="{{note}}"
       maxlength="300"
-      placeholder="为什么想去、想吃什么，或者其他提醒……"
+      placeholder="{{lifecycleStatus === 'want' ? '为什么种草、想吃什么，或者其他提醒……' : '这次体验怎么样、推荐什么、是否会再去……'}}"
       auto-height
       bindinput="onNoteInput"
     ></textarea>

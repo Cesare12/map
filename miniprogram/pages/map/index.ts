@@ -17,6 +17,9 @@ interface PlaceView extends Place {
   hasVisited: boolean;
   showWantAgain: boolean;
   latestVisitLabel: string;
+  lifecycleLabel: string;
+  lifecycleIcon: string;
+  lifecycleClass: string;
   selected: boolean;
 }
 
@@ -126,7 +129,7 @@ Page({
     let filtered = rawPlaces.filter((place) => categoryId === "all" || place.categoryId === categoryId);
     filtered = filtered.filter((place) => {
       if (status === "want") return place.wantToVisit;
-      if (status === "visited") return place.visits.length > 0;
+      if (status === "visited") return !place.wantToVisit && place.visits.length > 0;
       return true;
     });
 
@@ -143,10 +146,15 @@ Page({
         categoryColor: category ? category.color : "#8B6F9B",
         distance,
         distanceLabel: formatDistance(distance),
-        statusLabel: place.wantToVisit ? (hasVisited ? "想再去" : "待去") : (hasVisited ? `去过 ${place.visits.length} 次` : "已保存"),
+        statusLabel: place.wantToVisit
+          ? (hasVisited ? `再次种草 · 去过 ${place.visits.length} 次` : "等待拔草")
+          : `已拔草 · 去过 ${place.visits.length} 次`,
         hasVisited,
         showWantAgain: hasVisited && !place.wantToVisit,
         latestVisitLabel: latestVisit ? formatVisitTime(latestVisit.visitedAt) : "",
+        lifecycleLabel: place.wantToVisit ? "种草" : "拔草",
+        lifecycleIcon: place.wantToVisit ? "🌱" : "✓",
+        lifecycleClass: place.wantToVisit ? "want" : "visited",
         selected: place.id === this.data.selectedPlaceId
       };
     });
@@ -165,23 +173,28 @@ Page({
       iconPath: this.markerIconPath,
       width: 30,
       height: 40,
-      alpha: place.hasVisited && !place.wantToVisit ? 0.62 : 1,
+      alpha: place.hasVisited && !place.wantToVisit ? 0.78 : 1,
       label: {
-        content: place.categoryEmoji,
-        fontSize: 18,
-        anchorX: -8,
+        content: `${place.lifecycleIcon} ${place.categoryEmoji}`,
+        color: place.wantToVisit ? "#76520c" : "#285b46",
+        fontSize: 15,
+        anchorX: -18,
         anchorY: -44,
         borderRadius: 14,
-        bgColor: "#fffdf7",
-        padding: 5
+        bgColor: place.wantToVisit ? "#fff0c9" : "#dff1e7",
+        borderWidth: 1,
+        borderColor: place.wantToVisit ? "#efbd54" : "#70a58c",
+        padding: 6
       },
       callout: {
         content: `${place.name}\n${place.distanceLabel}`,
         display: place.selected ? "ALWAYS" : "BYCLICK",
         padding: 8,
         borderRadius: 8,
-        bgColor: "#24251f",
-        color: "#ffffff",
+        bgColor: "#fffdf7",
+        color: "#24251f",
+        borderWidth: 1,
+        borderColor: "#d8d2c5",
         fontSize: 12
       }
     }));
@@ -194,21 +207,24 @@ Page({
         active: category.id === categoryId
       }))
     ];
+    const scopedPlaces = rawPlaces.filter((place) => categoryId === "all" || place.categoryId === categoryId);
+    const wantCount = scopedPlaces.filter((place) => place.wantToVisit).length;
+    const visitedCount = scopedPlaces.filter((place) => !place.wantToVisit && place.visits.length > 0).length;
     const statusTabs = [
-      { id: "all", name: "全部状态", active: status === "all" },
-      { id: "want", name: "待去", active: status === "want" },
-      { id: "visited", name: "去过", active: status === "visited" }
+      { id: "all", icon: "◉", name: "全部", count: scopedPlaces.length, active: status === "all" },
+      { id: "want", icon: "🌱", name: "种草", count: wantCount, active: status === "want" },
+      { id: "visited", icon: "✓", name: "拔草", count: visitedCount, active: status === "visited" }
     ];
 
     let emptyTitle = "";
     let emptyCopy = "";
     let emptyIcon = "📍";
     if (rawPlaces.length === 0) {
-      emptyTitle = "还没有想去的地方";
-      emptyCopy = "从你刚刚刷到的那家店开始吧";
+      emptyTitle = "还没有种草的地方";
+      emptyCopy = "从你刚刚刷到的那家店开始种草吧";
     } else if (views.length === 0) {
       emptyTitle = "这个筛选下没有地点";
-      emptyCopy = "换一个分类或状态看看";
+      emptyCopy = status === "want" ? "这个分类暂时没有种草地点" : status === "visited" ? "去一家店，完成第一次拔草吧" : "换一个分类看看";
       emptyIcon = "🧭";
     }
 
@@ -291,14 +307,14 @@ Page({
     const selected = this.data.selectedPlace as PlaceView | null;
     if (!selected) return;
     wx.showModal({
-      title: selected.hasVisited ? "记录再次到访？" : "标记为去过？",
-      content: "会记录当前时间，并结束本次待去状态。",
-      confirmText: "确认",
+      title: selected.hasVisited ? "再次完成拔草？" : "完成拔草？",
+      content: "会记录本次到访时间，并把地点移到“拔草”中。",
+      confirmText: "完成拔草",
       success: (result: any) => {
         if (!result.confirm) return;
         recordVisit(selected.id);
         this.loadData();
-        wx.showToast({ title: "已经记下", icon: "success" });
+        wx.showToast({ title: "拔草完成", icon: "success" });
       }
     });
   },
@@ -308,7 +324,7 @@ Page({
     if (!selected) return;
     setWantToVisit(selected.id, true);
     this.loadData();
-    wx.showToast({ title: "加入待去", icon: "success" });
+    wx.showToast({ title: "再次种草", icon: "success" });
   },
 
   navigateSelected() {

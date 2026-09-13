@@ -45,7 +45,11 @@
         class="status-chip {{item.active ? 'active' : ''}}"
         data-id="{{item.id}}"
         bindtap="selectStatus"
-      >{{item.name}}</button>
+      >
+        <text class="status-icon">{{item.icon}}</text>
+        <text>{{item.name}}</text>
+        <text class="status-count">{{item.count}}</text>
+      </button>
       <view class="count-label">{{viewportLabel}}</view>
     </view>
   </view>
@@ -71,7 +75,10 @@
   <view class="bottom-stack">
     <view class="selected-card" wx:if="{{selectedPlace}}">
       <view class="selected-head">
-        <view class="selected-category">{{selectedPlace.categoryEmoji}} {{selectedPlace.categoryName}}</view>
+        <view class="selected-tags">
+          <view class="lifecycle-badge {{selectedPlace.lifecycleClass}}">{{selectedPlace.lifecycleIcon}} {{selectedPlace.lifecycleLabel}}</view>
+          <view class="selected-category">{{selectedPlace.categoryEmoji}} {{selectedPlace.categoryName}}</view>
+        </view>
         <button class="close-button" bindtap="closeSelected">×</button>
       </view>
       <view class="selected-name">{{selectedPlace.name}}</view>
@@ -89,9 +96,9 @@
           class="secondary-action"
           bindtap="wantAgain"
           wx:if="{{selectedPlace.showWantAgain}}"
-        >再去一次</button>
+        >再次种草</button>
         <button class="secondary-action" bindtap="recordSelectedVisit">
-          {{selectedPlace.hasVisited ? '再次到访' : '标记去过'}}
+          {{selectedPlace.hasVisited ? '再次拔草' : '完成拔草'}}
         </button>
         <button class="primary-action" bindtap="navigateSelected">去这里</button>
       </view>
@@ -115,7 +122,7 @@
             bindtap="selectPlaceCard"
           >
             <view class="nearby-card-top">
-              <text class="nearby-emoji">{{item.categoryEmoji}}</text>
+              <view class="nearby-type {{item.lifecycleClass}}"><text>{{item.lifecycleIcon}}</text><text>{{item.lifecycleLabel}}</text></view>
               <text class="nearby-distance">{{item.distanceLabel}}</text>
             </view>
             <view class="nearby-name">{{item.name}}</view>
