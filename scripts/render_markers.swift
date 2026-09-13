@@ -4,8 +4,34 @@ let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 let iconOutput = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: iconOutput, withIntermediateDirectories: true)
-let green = NSColor(calibratedRed: 36/255, green: 100/255, blue: 71/255, alpha: 1)
 let white = NSColor.white
+
+struct Palette {
+  let key: String
+  let color: NSColor
+}
+
+func rgb(_ red: Int, _ green: Int, _ blue: Int) -> NSColor {
+  NSColor(calibratedRed: CGFloat(red)/255, green: CGFloat(green)/255, blue: CGFloat(blue)/255, alpha: 1)
+}
+
+let palettes = [
+  Palette(key: "red", color: rgb(215, 0, 21)),
+  Palette(key: "orange", color: rgb(201, 52, 0)),
+  Palette(key: "yellow", color: rgb(154, 103, 0)),
+  Palette(key: "green", color: rgb(36, 138, 61)),
+  Palette(key: "teal", color: rgb(0, 124, 131)),
+  Palette(key: "blue", color: rgb(0, 113, 227)),
+  Palette(key: "indigo", color: rgb(81, 75, 195)),
+  Palette(key: "purple", color: rgb(137, 68, 171))
+]
+
+for directory in [output, iconOutput] {
+  let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+  for file in files where file.pathExtension.lowercased() == "png" {
+    try FileManager.default.removeItem(at: file)
+  }
+}
 
 enum Kind: String, CaseIterable {
   case food, coffee, pet, car, shopping, sport, outdoors, entertainment, service, health, sight, other
@@ -95,37 +121,40 @@ func pngData(_ image: NSImage) -> Data {
         let png = rep.representation(using: .png, properties: [:]) else { fatalError("PNG encode failed") }
   return png
 }
-func drawCheckBadge() {
+func drawCheckBadge(_ accent: NSColor) {
   let badge = circle(57, 69, 11)
-  fill(badge, white); stroke(badge, green, 2.5)
-  let check = NSBezierPath(); check.move(to: NSPoint(x: 52, y: 69)); check.line(to: NSPoint(x: 56, y: 65)); check.line(to: NSPoint(x: 63, y: 73)); stroke(check, green, 3)
+  fill(badge, white); stroke(badge, accent, 2.5)
+  let check = NSBezierPath(); check.move(to: NSPoint(x: 52, y: 69)); check.line(to: NSPoint(x: 56, y: 65)); check.line(to: NSPoint(x: 63, y: 73)); stroke(check, accent, 3)
 }
 
-for kind in Kind.allCases {
-  for state in State.allCases {
-    let image = NSImage(size: NSSize(width: 72, height: 88))
-    image.lockFocus()
-    NSGraphicsContext.current?.imageInterpolation = .high
-    let pin = markerPath()
-    // 遵循 Apple 的完成状态语言：未完成保持描边，完成后使用实心并明确显示勾。
-    if state == .want { fill(pin, white); stroke(pin, green, 3) }
-    else { fill(pin, green); stroke(pin, white, 3) }
-    drawGlyph(kind, color: state == .want ? green : white)
-    if state == .visited { drawCheckBadge() }
-    image.unlockFocus()
-    try pngData(image).write(to: output.appendingPathComponent("\(kind.rawValue)-\(state.rawValue).png"))
-  }
+for palette in palettes {
+  for kind in Kind.allCases {
+    for state in State.allCases {
+      let image = NSImage(size: NSSize(width: 72, height: 88))
+      image.lockFocus()
+      NSGraphicsContext.current?.imageInterpolation = .high
+      let pin = markerPath()
+      // 遵循 Apple 的完成状态语言：未完成保持描边，完成后使用实心并明确显示勾。
+      if state == .want { fill(pin, white); stroke(pin, palette.color, 3) }
+      else { fill(pin, palette.color); stroke(pin, white, 3) }
+      drawGlyph(kind, color: state == .want ? palette.color : white)
+      if state == .visited { drawCheckBadge(palette.color) }
+      image.unlockFocus()
+      try pngData(image).write(to: output.appendingPathComponent("\(palette.key)-\(kind.rawValue)-\(state.rawValue).png"))
+    }
 
-  let icon = NSImage(size: NSSize(width: 72, height: 72))
-  icon.lockFocus()
-  let transform = NSAffineTransform(); transform.translateX(by: 0, yBy: -15); transform.concat()
-  drawGlyph(kind, color: green)
-  icon.unlockFocus()
-  try pngData(icon).write(to: iconOutput.appendingPathComponent("\(kind.rawValue).png"))
+    let icon = NSImage(size: NSSize(width: 72, height: 72))
+    icon.lockFocus()
+    let transform = NSAffineTransform(); transform.translateX(by: 0, yBy: -15); transform.concat()
+    drawGlyph(kind, color: palette.color)
+    icon.unlockFocus()
+    try pngData(icon).write(to: iconOutput.appendingPathComponent("\(palette.key)-\(kind.rawValue).png"))
+  }
 }
 
 let allIcon = NSImage(size: NSSize(width: 72, height: 72))
 allIcon.lockFocus()
-for x in [22.0, 40.0] { for y in [22.0, 40.0] { fill(NSBezierPath(roundedRect: NSRect(x: x, y: y, width: 12, height: 12), xRadius: 3, yRadius: 3), green) } }
+let systemBlue = rgb(0, 122, 255)
+for x in [22.0, 40.0] { for y in [22.0, 40.0] { fill(NSBezierPath(roundedRect: NSRect(x: x, y: y, width: 12, height: 12), xRadius: 3, yRadius: 3), systemBlue) } }
 allIcon.unlockFocus()
 try pngData(allIcon).write(to: iconOutput.appendingPathComponent("all.png"))

@@ -1,13 +1,8 @@
 <view class="editor-page">
-  <view class="safe-top"></view>
-  <view class="nav-bar">
-    <button class="nav-button" bindtap="goBack">‹</button>
-    <view class="nav-title">{{editing ? '编辑地点' : '添加地点'}}</view>
-    <view class="nav-spacer"></view>
-  </view>
-
   <view class="place-hero">
-    <view class="hero-pin">📍</view>
+    <view class="hero-pin" style="background: {{selectedCategorySoftColor}}">
+      <image src="{{selectedCategoryIconPath}}" mode="aspectFit" />
+    </view>
     <view class="hero-content">
       <input
         class="name-input"
@@ -18,7 +13,7 @@
       />
       <view class="address">{{address || '尚未选择地点'}}</view>
     </view>
-    <button class="reselect-button" bindtap="reselectLocation">重选</button>
+    <button class="reselect-button" bindtap="reselectLocation">重新选择</button>
   </view>
 
   <view class="section">
@@ -28,31 +23,31 @@
         wx:for="{{categoryOptions}}"
         wx:key="id"
         class="category-option {{item.active ? 'active' : ''}}"
+        style="{{item.style}}"
         data-id="{{item.id}}"
         bindtap="selectCategory"
       >
         <image class="category-emoji" src="{{item.iconPath}}" mode="aspectFit" />
         <text>{{item.name}}</text>
+        <text class="category-check" wx:if="{{item.active}}">✓</text>
       </button>
     </view>
   </view>
 
   <view class="section">
-    <view class="section-label">现在是哪种状态</view>
-    <view class="lifecycle-grid">
+    <view class="section-label">状态</view>
+    <view class="lifecycle-control">
       <button
         wx:for="{{lifecycleOptions}}"
         wx:key="id"
-        class="lifecycle-option {{item.id}} {{item.active ? 'active' : ''}}"
+        class="lifecycle-option {{item.active ? 'active' : ''}}"
         data-id="{{item.id}}"
         bindtap="selectLifecycle"
-      >
-        <text class="lifecycle-icon">{{item.icon}}</text>
-        <view class="lifecycle-copy">
-          <view class="lifecycle-title">{{item.title}}</view>
-          <view class="lifecycle-description">{{item.copy}}</view>
-        </view>
-      </button>
+      >{{item.title}}</button>
+    </view>
+    <view class="lifecycle-help">
+      <text class="lifecycle-state-icon">{{lifecycleStatus == 'want' ? '○' : '✓'}}</text>
+      <text>{{lifecycleStatus == 'want' ? '尚未到访，保留在种草列表' : '已经到访，记录一次拔草'}}</text>
     </view>
   </view>
 
@@ -70,7 +65,7 @@
   </view>
 
   <view class="save-area">
-    <button class="save-button" bindtap="savePlace">保存到地图</button>
+    <button class="save-button" bindtap="savePlace" disabled="{{!name || !latitude || !longitude}}">{{editing ? '完成' : '添加到地图'}}</button>
     <button class="delete-button" wx:if="{{editing}}" bindtap="deletePlace">删除这个地点</button>
   </view>
 </view>

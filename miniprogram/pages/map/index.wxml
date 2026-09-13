@@ -15,7 +15,7 @@
     <view class="safe-top" style="height: {{safeTop}}px"></view>
     <view class="top-toolbar" style="margin-right: {{capsuleReserve}}px">
       <view class="brand-block">
-        <text class="title">想去地图</text>
+        <text class="title">我的地点</text>
         <text class="result-count">{{filteredPlaces.length}}</text>
       </view>
       <view class="status-control">
@@ -35,6 +35,7 @@
           wx:for="{{categoryTabs}}"
           wx:key="id"
           class="category-chip {{item.active ? 'active' : ''}}"
+          style="{{item.style}}"
           data-id="{{item.id}}"
           bindtap="selectCategory"
         >
@@ -65,9 +66,9 @@
     <view class="selected-card" wx:if="{{selectedPlace}}">
       <view class="selected-head">
         <view class="selected-tags">
-          <view class="category-mark"><image src="{{selectedPlace.categoryIconPath}}" mode="aspectFit" /></view>
+          <view class="category-mark" style="background: {{selectedPlace.categorySoftColor}}"><image src="{{selectedPlace.categoryIconPath}}" mode="aspectFit" /></view>
           <view>
-            <view class="selected-category">{{selectedPlace.categoryName}}</view>
+            <view class="selected-category" style="color: {{selectedPlace.categoryColor}}">{{selectedPlace.categoryName}}</view>
             <view class="lifecycle-label {{selectedPlace.lifecycleClass}}">{{selectedPlace.lifecycleIcon}} {{selectedPlace.lifecycleLabel}}</view>
           </view>
         </view>
@@ -109,7 +110,7 @@
             bindtap="selectPlaceCard"
           >
             <view class="nearby-card-head">
-              <view class="nearby-category"><image src="{{item.categoryIconPath}}" mode="aspectFit" />{{item.categoryName}}</view>
+              <view class="nearby-category" style="color: {{item.categoryColor}}"><image src="{{item.categoryIconPath}}" mode="aspectFit" />{{item.categoryName}}</view>
               <view class="nearby-distance">{{item.distanceLabel}}</view>
             </view>
             <view class="nearby-name">{{item.name}}</view>
@@ -123,19 +124,35 @@
 
   <view class="modal-mask" wx:if="{{categoryCreatorVisible}}" bindtap="hideCategoryCreator">
     <view class="modal-card" catchtap="stopEvent">
-      <view class="modal-title">{{categoryEditorMode == 'create' ? '新建分类' : '修改分类图标'}}</view>
-      <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">例如：咖啡、露营、修车</view>
-      <view class="modal-copy" wx:else>“{{newCategoryName}}”在顶部和地图上的图标会一起更新</view>
+      <view class="sheet-handle"></view>
+      <view class="sheet-toolbar">
+        <button class="sheet-button" bindtap="hideCategoryCreator">取消</button>
+        <view class="modal-title">{{categoryEditorMode == 'create' ? '新建分类' : '编辑分类'}}</view>
+        <button class="sheet-button done" bindtap="saveCategoryEditor" disabled="{{!newCategoryName}}">完成</button>
+      </view>
+      <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">分类颜色与图标会同步显示在地图上</view>
+      <view class="modal-copy" wx:else>修改名称、颜色和图标</view>
       <input
-        wx:if="{{categoryEditorMode == 'create'}}"
         class="category-input"
         value="{{newCategoryName}}"
         maxlength="8"
         placeholder="输入分类名称"
-        focus="{{categoryCreatorVisible}}"
+        focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
         bindinput="onCategoryNameInput"
         bindconfirm="saveCategoryEditor"
       />
+      <view class="icon-picker-label">颜色</view>
+      <view class="color-picker-row">
+        <button
+          wx:for="{{categoryColorOptions}}"
+          wx:key="key"
+          class="color-option {{item.active ? 'active' : ''}}"
+          style="background: {{item.hex}}"
+          data-key="{{item.key}}"
+          bindtap="selectCategoryColor"
+          aria-label="{{item.name}}"
+        ><text wx:if="{{item.active}}">✓</text></button>
+      </view>
       <view class="icon-picker-label">选择分类图标</view>
       <scroll-view class="icon-picker-scroll" scroll-y="{{true}}" enhanced="{{true}}">
         <view class="icon-picker-grid">
@@ -145,16 +162,13 @@
             class="icon-option {{item.active ? 'active' : ''}}"
             data-key="{{item.key}}"
             bindtap="selectCategoryIcon"
+            aria-label="{{item.name}}"
           >
             <image src="{{item.iconPath}}" mode="aspectFit" />
             <text>{{item.name}}</text>
           </button>
         </view>
       </scroll-view>
-      <view class="modal-actions">
-        <button class="modal-cancel" bindtap="hideCategoryCreator">取消</button>
-        <button class="modal-confirm" bindtap="saveCategoryEditor">{{categoryEditorMode == 'create' ? '创建' : '保存'}}</button>
-      </view>
     </view>
   </view>
 </view>

@@ -1,3 +1,5 @@
+import { normalizeCategoryColorKey } from "./category-color";
+
 export interface CategoryIconOption {
   key: string;
   name: string;
@@ -24,6 +26,6 @@ export function normalizeCategoryIconKey(value: unknown): string {
   return typeof value === "string" && CATEGORY_ICON_KEYS.has(value) ? value : "other";
 }
 
-export function categoryIconPath(iconKey: string): string {
-  return `/assets/category-icons/${normalizeCategoryIconKey(iconKey)}.png`;
+export function categoryIconPath(iconKey: string, colorKey = "blue"): string {
+  return `/assets/category-icons/${normalizeCategoryColorKey(colorKey)}-${normalizeCategoryIconKey(iconKey)}.png`;
 }

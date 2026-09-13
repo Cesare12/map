@@ -1,8 +1,9 @@
-import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setCategoryIcon, setWantToVisit } from "../../utils/storage";
+import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setCategoryAppearance, setWantToVisit } from "../../utils/storage";
 import { distanceMeters, formatDistance, isInsideRegion } from "../../utils/geo";
 import { formatVisitTime } from "../../utils/format";
 import { markerIconPath } from "../../utils/marker";
 import { CATEGORY_ICON_OPTIONS, categoryIconPath } from "../../utils/category-icon";
+import { CATEGORY_COLOR_OPTIONS, categoryColor } from "../../utils/category-color";
 import { Category, CurrentLocation, Place } from "../../utils/types";
 
 type StatusFilter = "all" | "want" | "visited";
@@ -13,7 +14,9 @@ interface PlaceView extends Place {
   categoryEmoji: string;
   categoryIconKey: string;
   categoryIconPath: string;
+  categoryColorKey: string;
   categoryColor: string;
+  categorySoftColor: string;
   distance: number | null;
   distanceLabel: string;
   statusLabel: string;
@@ -54,13 +57,18 @@ Page({
     emptyIcon: "📍",
     nearbyCollapsed: false,
     categoryCreatorVisible: false,
-    categoryEditorMode: "create" as "create" | "icon",
+    categoryEditorMode: "create" as "create" | "edit",
     editingCategoryId: "",
     newCategoryName: "",
     newCategoryIconKey: "other",
+    newCategoryColorKey: "blue",
+    categoryColorOptions: CATEGORY_COLOR_OPTIONS.map((item) => ({
+      ...item,
+      active: item.key === "blue"
+    })),
     categoryIconOptions: CATEGORY_ICON_OPTIONS.map((item) => ({
       ...item,
-      iconPath: categoryIconPath(item.key),
+      iconPath: categoryIconPath(item.key, "blue"),
       active: item.key === "other"
     }))
   },
@@ -190,12 +198,13 @@ Page({
     let filtered = rawPlaces.filter((place) => categoryId === "all" || place.categoryId === categoryId);
     filtered = filtered.filter((place) => {
       if (status === "want") return place.wantToVisit;
-      if (status === "visited") return place.visits.length > 0;
+      if (status === "visited") return !place.wantToVisit;
       return true;
     });
 
     const views: PlaceView[] = filtered.map((place) => {
       const category = categoryById.get(place.categoryId) || categories[0];
+      const palette = categoryColor(category ? category.colorKey : "blue");
       const distance = this.currentLocation ? distanceMeters(this.currentLocation, place) : null;
       const latestVisit = place.visits.length ? place.visits[place.visits.length - 1] : null;
       const hasVisited = place.visits.length > 0;
@@ -205,8 +214,10 @@ Page({
         categoryName: category ? category.name : "其他",
         categoryEmoji: category ? category.emoji : "📍",
         categoryIconKey: category ? category.iconKey : "other",
-        categoryIconPath: categoryIconPath(category ? category.iconKey : "other"),
-        categoryColor: category ? category.color : "#8B6F9B",
+        categoryIconPath: categoryIconPath(category ? category.iconKey : "other", palette.key),
+        categoryColorKey: palette.key,
+        categoryColor: palette.hex,
+        categorySoftColor: palette.soft,
         distance,
         distanceLabel: formatDistance(distance),
         statusLabel: hasVisited ? `去过 ${place.visits.length} 次` : "等待拔草",
@@ -214,7 +225,7 @@ Page({
         showWantAgain: hasVisited && !place.wantToVisit,
         latestVisitLabel: latestVisit ? formatVisitTime(latestVisit.visitedAt) : "",
         lifecycleLabel: place.wantToVisit ? (hasVisited ? "再次种草" : "种草") : "已拔草",
-        lifecycleIcon: place.wantToVisit ? "🌱" : "✓",
+        lifecycleIcon: place.wantToVisit ? "○" : "✓",
         lifecycleClass: place.wantToVisit ? "want" : "visited",
         selected: place.id === this.data.selectedPlaceId
       };
@@ -231,24 +242,35 @@ Page({
       id: place.markerId,
       latitude: place.latitude,
       longitude: place.longitude,
-      iconPath: markerIconPath(place.categoryIconKey, place.wantToVisit),
+      iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit),
       width: place.selected ? 36 : 30,
       height: place.selected ? 44 : 37,
+      zIndex: place.selected ? 9 : 1,
       anchor: { x: 0.5, y: 1 }
     }));
 
     const categoryTabs = [
-      { id: "all", name: "全部", iconPath: "/assets/category-icons/all.png", count: rawPlaces.length, active: categoryId === "all" },
+      {
+        id: "all",
+        name: "全部",
+        iconPath: "/assets/category-icons/all.png",
+        count: rawPlaces.length,
+        active: categoryId === "all",
+        style: categoryId === "all" ? "border-color:#007aff;background:#eaf3ff;color:#007aff" : ""
+      },
       ...categories.map((category) => ({
         ...category,
-        iconPath: categoryIconPath(category.iconKey),
+        iconPath: categoryIconPath(category.iconKey, category.colorKey),
+        style: category.id === categoryId
+          ? `border-color:${category.color};background:${categoryColor(category.colorKey).soft};color:${category.color}`
+          : "",
         count: rawPlaces.filter((place) => place.categoryId === category.id).length,
         active: category.id === categoryId
       }))
     ];
     const scopedPlaces = rawPlaces.filter((place) => categoryId === "all" || place.categoryId === categoryId);
     const wantCount = scopedPlaces.filter((place) => place.wantToVisit).length;
-    const visitedCount = scopedPlaces.filter((place) => place.visits.length > 0).length;
+    const visitedCount = scopedPlaces.filter((place) => !place.wantToVisit).length;
     const statusTabs = [
       { id: "all", icon: "◉", name: "全部", count: scopedPlaces.length, active: status === "all" },
       { id: "want", icon: "🌱", name: "种草", count: wantCount, active: status === "want" },
@@ -345,17 +367,9 @@ Page({
   recordSelectedVisit() {
     const selected = this.data.selectedPlace as PlaceView | null;
     if (!selected) return;
-    wx.showModal({
-      title: selected.hasVisited ? "再次完成拔草？" : "完成拔草？",
-      content: "会记录本次到访时间，并把地点移到“拔草”中。",
-      confirmText: "完成拔草",
-      success: (result: any) => {
-        if (!result.confirm) return;
-        recordVisit(selected.id);
-        this.loadData();
-        wx.showToast({ title: "拔草完成", icon: "success" });
-      }
-    });
+    recordVisit(selected.id);
+    this.loadData();
+    wx.showToast({ title: "已完成拔草", icon: "success" });
   },
 
   wantAgain() {
@@ -436,11 +450,15 @@ Page({
       categoryEditorMode: "create",
       editingCategoryId: "",
       newCategoryName: "",
-      newCategoryIconKey: "other"
-    }, () => this.refreshCategoryIconOptions());
+      newCategoryIconKey: "other",
+      newCategoryColorKey: "blue"
+    }, () => {
+      this.refreshCategoryColorOptions();
+      this.refreshCategoryIconOptions();
+    });
   },
 
-  showCurrentCategoryIconEditor() {
+  showCurrentCategoryEditor() {
     const categoryId = this.data.selectedCategoryId;
     if (categoryId === "all") {
       wx.showToast({ title: "请先选择一个分类", icon: "none" });
@@ -450,11 +468,15 @@ Page({
     if (!category) return;
     this.setData({
       categoryCreatorVisible: true,
-      categoryEditorMode: "icon",
+      categoryEditorMode: "edit",
       editingCategoryId: category.id,
       newCategoryName: category.name,
-      newCategoryIconKey: category.iconKey
-    }, () => this.refreshCategoryIconOptions());
+      newCategoryIconKey: category.iconKey,
+      newCategoryColorKey: category.colorKey
+    }, () => {
+      this.refreshCategoryColorOptions();
+      this.refreshCategoryIconOptions();
+    });
   },
 
   hideCategoryCreator() {
@@ -463,10 +485,21 @@ Page({
 
   refreshCategoryIconOptions() {
     const selected = this.data.newCategoryIconKey;
+    const colorKey = this.data.newCategoryColorKey;
     this.setData({
       categoryIconOptions: CATEGORY_ICON_OPTIONS.map((item) => ({
         ...item,
-        iconPath: categoryIconPath(item.key),
+        iconPath: categoryIconPath(item.key, colorKey),
+        active: item.key === selected
+      }))
+    });
+  },
+
+  refreshCategoryColorOptions() {
+    const selected = this.data.newCategoryColorKey;
+    this.setData({
+      categoryColorOptions: CATEGORY_COLOR_OPTIONS.map((item) => ({
+        ...item,
         active: item.key === selected
       }))
     });
@@ -476,25 +509,44 @@ Page({
     this.setData({ newCategoryIconKey: event.currentTarget.dataset.key }, () => this.refreshCategoryIconOptions());
   },
 
+  selectCategoryColor(event: any) {
+    this.setData({ newCategoryColorKey: event.currentTarget.dataset.key }, () => {
+      this.refreshCategoryColorOptions();
+      this.refreshCategoryIconOptions();
+    });
+  },
+
   onCategoryNameInput(event: any) {
     this.setData({ newCategoryName: event.detail.value });
   },
 
   saveCategoryEditor() {
-    if (this.data.categoryEditorMode === "icon") {
-      const category = setCategoryIcon(this.data.editingCategoryId, this.data.newCategoryIconKey);
-      if (!category) return;
-      this.hideCategoryCreator();
-      this.loadData();
-      wx.showToast({ title: "分类图标已更新", icon: "success" });
-      return;
-    }
     const name = String(this.data.newCategoryName || "").trim();
     if (!name) {
       wx.showToast({ title: "请输入分类名称", icon: "none" });
       return;
     }
-    const category = addCategory(name, this.data.newCategoryIconKey);
+    const duplicate = (this.data.categories as Category[]).some((item) =>
+      item.name === name && item.id !== this.data.editingCategoryId
+    );
+    if (duplicate) {
+      wx.showToast({ title: "分类名称已存在", icon: "none" });
+      return;
+    }
+    if (this.data.categoryEditorMode === "edit") {
+      const category = setCategoryAppearance(
+        this.data.editingCategoryId,
+        name,
+        this.data.newCategoryIconKey,
+        this.data.newCategoryColorKey
+      );
+      if (!category) return;
+      this.hideCategoryCreator();
+      this.loadData();
+      wx.showToast({ title: "分类已更新", icon: "success" });
+      return;
+    }
+    const category = addCategory(name, this.data.newCategoryIconKey, this.data.newCategoryColorKey);
     this.hideCategoryCreator();
     this.loadData();
     this.setData({ selectedCategoryId: category.id }, () => this.applyFilters());
@@ -503,12 +555,16 @@ Page({
   stopEvent() {},
 
   openMore() {
+    const canEditCategory = this.data.selectedCategoryId !== "all";
+    const itemList = canEditCategory
+      ? ["新增分类", "修改当前分类", "复制本地备份"]
+      : ["新增分类", "复制本地备份"];
     wx.showActionSheet({
-      itemList: ["新增分类", "修改当前分类图标", "复制本地备份"],
+      itemList,
       success: (result: any) => {
         if (result.tapIndex === 0) this.showCategoryCreator();
-        if (result.tapIndex === 1) this.showCurrentCategoryIconEditor();
-        if (result.tapIndex === 2) this.copyBackup();
+        if (canEditCategory && result.tapIndex === 1) this.showCurrentCategoryEditor();
+        if ((!canEditCategory && result.tapIndex === 1) || (canEditCategory && result.tapIndex === 2)) this.copyBackup();
       }
     });
   },
@@ -516,11 +572,7 @@ Page({
   copyBackup() {
     wx.setClipboardData({
       data: exportSnapshotText(),
-      success: () => wx.showModal({
-        title: "备份已经复制",
-        content: "请粘贴到自己的安全位置保存。当前 V0 只有文字和地点数据。",
-        showCancel: false
-      })
+      success: () => wx.showToast({ title: "备份已复制", icon: "success" })
     });
   }
 });

@@ -3,6 +3,7 @@ export interface Category {
   name: string;
   emoji: string;
   iconKey: string;
+  colorKey: string;
   color: string;
   builtIn: boolean;
 }

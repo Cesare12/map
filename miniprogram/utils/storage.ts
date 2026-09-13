@@ -1,13 +1,14 @@
 import { Category, Place, Snapshot, Visit } from "./types";
 import { normalizeCategoryIconKey } from "./category-icon";
+import { CATEGORY_COLOR_OPTIONS, categoryColor, normalizeCategoryColorKey } from "./category-color";
 
 const STORAGE_KEY = "want_to_go_map_snapshot_v1";
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: "food", name: "美食", emoji: "🍜", iconKey: "food", color: "#E36B4D", builtIn: true },
-  { id: "pet", name: "宠物", emoji: "🐾", iconKey: "pet", color: "#678B72", builtIn: true },
-  { id: "car", name: "洗车", emoji: "🚗", iconKey: "car", color: "#527DAA", builtIn: true },
-  { id: "other", name: "其他", emoji: "📍", iconKey: "other", color: "#8B6F9B", builtIn: true }
+  { id: "food", name: "美食", emoji: "🍜", iconKey: "food", colorKey: "orange", color: "#C93400", builtIn: true },
+  { id: "pet", name: "宠物", emoji: "🐾", iconKey: "pet", colorKey: "green", color: "#248A3D", builtIn: true },
+  { id: "car", name: "洗车", emoji: "🚗", iconKey: "car", colorKey: "blue", color: "#0071E3", builtIn: true },
+  { id: "other", name: "其他", emoji: "📍", iconKey: "other", colorKey: "purple", color: "#8944AB", builtIn: true }
 ];
 
 function cloneDefaults(): Category[] {
@@ -61,10 +62,15 @@ export function loadSnapshot(): Snapshot {
       ? raw.categories.filter((item: any) =>
           item && typeof item.id === "string" && typeof item.name === "string" &&
           typeof item.emoji === "string" && typeof item.color === "string"
-        ).map((item: any) => ({
-          ...item,
-          iconKey: normalizeCategoryIconKey(item.iconKey || item.id)
-        }))
+        ).map((item: any) => {
+          const colorKey = normalizeCategoryColorKey(item.colorKey, item.color);
+          return {
+            ...item,
+            iconKey: normalizeCategoryIconKey(item.iconKey || item.id),
+            colorKey,
+            color: categoryColor(colorKey).hex
+          };
+        })
       : [];
     const byId = new Map<string, Category>();
     cloneDefaults().concat(customCategories).forEach((item) => byId.set(item.id, item));
@@ -89,18 +95,21 @@ export function createId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function addCategory(name: string, iconKey = "other", emoji = "🏷️"): Category {
+export function addCategory(name: string, iconKey = "other", colorKey?: string, emoji = "🏷️"): Category {
   const snapshot = loadSnapshot();
   const trimmed = name.trim().slice(0, 8);
   const duplicate = snapshot.categories.find((item) => item.name === trimmed);
   if (duplicate) return duplicate;
-  const colors = ["#BD765F", "#527DAA", "#6F8357", "#936A9D", "#B48638"];
+  const selectedColorKey = normalizeCategoryColorKey(
+    colorKey || CATEGORY_COLOR_OPTIONS[snapshot.categories.length % CATEGORY_COLOR_OPTIONS.length].key
+  );
   const category: Category = {
     id: createId("category"),
     name: trimmed,
     emoji,
     iconKey: normalizeCategoryIconKey(iconKey),
-    color: colors[snapshot.categories.length % colors.length],
+    colorKey: selectedColorKey,
+    color: categoryColor(selectedColorKey).hex,
     builtIn: false
   };
   snapshot.categories.push(category);
@@ -108,11 +117,16 @@ export function addCategory(name: string, iconKey = "other", emoji = "🏷️"):
   return category;
 }
 
-export function setCategoryIcon(categoryId: string, iconKey: string): Category | null {
+export function setCategoryAppearance(categoryId: string, name: string, iconKey: string, colorKey: string): Category | null {
   const snapshot = loadSnapshot();
   const category = snapshot.categories.find((item) => item.id === categoryId);
   if (!category) return null;
+  const trimmed = name.trim().slice(0, 8);
+  if (!trimmed || snapshot.categories.some((item) => item.id !== categoryId && item.name === trimmed)) return null;
+  category.name = trimmed;
   category.iconKey = normalizeCategoryIconKey(iconKey);
+  category.colorKey = normalizeCategoryColorKey(colorKey);
+  category.color = categoryColor(category.colorKey).hex;
   saveSnapshot(snapshot);
   return category;
 }

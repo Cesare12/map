@@ -1,6 +1,7 @@
 import { createId, loadSnapshot, removePlace, upsertPlace } from "../../utils/storage";
 import { Category, Place, Visit } from "../../utils/types";
 import { categoryIconPath } from "../../utils/category-icon";
+import { categoryColor } from "../../utils/category-color";
 
 type LifecycleStatus = "want" | "visited";
 
@@ -15,6 +16,8 @@ Page({
     categoryId: "food",
     categoryOptions: [] as any[],
     categories: [] as Category[],
+    selectedCategoryIconPath: "",
+    selectedCategorySoftColor: "#EAF3FF",
     wantToVisit: true,
     lifecycleStatus: "want" as LifecycleStatus,
     initialLifecycleStatus: "want" as LifecycleStatus,
@@ -25,6 +28,7 @@ Page({
   },
 
   onLoad(options: Record<string, string>) {
+    wx.setNavigationBarTitle({ title: options.id ? "编辑地点" : "添加地点" });
     const snapshot = loadSnapshot();
     if (options.id) {
       const place = snapshot.places.find((item) => item.id === decodeURIComponent(options.id));
@@ -73,12 +77,21 @@ Page({
   },
 
   refreshCategories() {
+    const categories = this.data.categories as Category[];
+    const selected = categories.find((item) => item.id === this.data.categoryId) || categories[0];
     this.setData({
-      categoryOptions: (this.data.categories as Category[]).map((item) => ({
-        ...item,
-        iconPath: categoryIconPath(item.iconKey),
-        active: item.id === this.data.categoryId
-      }))
+      categoryOptions: categories.map((item) => {
+        const palette = categoryColor(item.colorKey);
+        const active = item.id === this.data.categoryId;
+        return {
+          ...item,
+          iconPath: categoryIconPath(item.iconKey, item.colorKey),
+          active,
+          style: active ? `border-color:${palette.hex};background:${palette.soft}` : ""
+        };
+      }),
+      selectedCategoryIconPath: selected ? categoryIconPath(selected.iconKey, selected.colorKey) : "",
+      selectedCategorySoftColor: selected ? categoryColor(selected.colorKey).soft : "#EAF3FF"
     });
   },
 
@@ -94,8 +107,8 @@ Page({
     const status = this.data.lifecycleStatus as LifecycleStatus;
     this.setData({
       lifecycleOptions: [
-        { id: "want", icon: "🌱", title: "种草", copy: "想去，等待拔草", active: status === "want" },
-        { id: "visited", icon: "✓", title: "拔草", copy: "已经到访过", active: status === "visited" }
+        { id: "want", title: "种草", active: status === "want" },
+        { id: "visited", title: "拔草", active: status === "visited" }
       ]
     });
   },
@@ -156,8 +169,7 @@ Page({
       upsertPlace(place);
       wx.setStorageSync("want_to_go_last_category", place.categoryId);
       wx.setStorageSync("want_to_go_focus_place_id", place.id);
-      wx.showToast({ title: lifecycleStatus === "want" ? "种草成功" : "已完成拔草", icon: "success" });
-      setTimeout(() => wx.navigateBack(), 450);
+      wx.navigateBack();
     } catch (error) {
       console.error("保存地点失败", error);
       wx.showModal({ title: "保存失败", content: "本机存储空间可能不足，请清理后重试。", showCancel: false });
@@ -173,13 +185,8 @@ Page({
       success: (result: any) => {
         if (!result.confirm) return;
         removePlace(this.data.id);
-        wx.showToast({ title: "已删除", icon: "success" });
-        setTimeout(() => wx.navigateBack(), 450);
+        wx.navigateBack();
       }
     });
-  },
-
-  goBack() {
-    wx.navigateBack();
   }
 });

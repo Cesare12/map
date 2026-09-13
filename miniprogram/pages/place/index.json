@@ -1,4 +1,7 @@
 {
-  "navigationStyle": "custom",
+  "navigationStyle": "default",
+  "navigationBarTitleText": "添加地点",
+  "navigationBarTextStyle": "black",
+  "navigationBarBackgroundColor": "#f2f2f7",
   "disableScroll": false
 }
