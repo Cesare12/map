@@ -1,0 +1,25 @@
+page {
+  --ink: #24251f;
+  --muted: #77786e;
+  --paper: #f7f4ed;
+  --card: rgba(255, 253, 247, 0.96);
+  --accent: #f5b93f;
+  --accent-dark: #8a5a00;
+  --green: #396a54;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+}
+
+button {
+  font: inherit;
+}
+
+button::after {
+  border: 0;
+}
+
+.safe-top {
+  height: env(safe-area-inset-top);
+}

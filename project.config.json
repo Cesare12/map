@@ -1,0 +1,28 @@
+{
+  "description": "想去地图 - 私人分类地点地图",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "miniprogram/",
+  "appid": "wx0fea2490b1be2ff3",
+  "projectname": "want-to-go-map",
+  "libVersion": "3.10.0",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "file",
+        "value": ".DS_Store"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "urlCheck": true,
+    "useCompilerPlugins": ["typescript"],
+    "uploadWithSourceMap": true
+  },
+  "condition": {}
+}

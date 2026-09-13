@@ -1,0 +1,67 @@
+<view class="editor-page">
+  <view class="safe-top"></view>
+  <view class="nav-bar">
+    <button class="nav-button" bindtap="goBack">‹</button>
+    <view class="nav-title">{{editing ? '编辑地点' : '添加地点'}}</view>
+    <view class="nav-spacer"></view>
+  </view>
+
+  <view class="place-hero">
+    <view class="hero-pin">📍</view>
+    <view class="hero-content">
+      <input
+        class="name-input"
+        value="{{name}}"
+        maxlength="40"
+        placeholder="地点名称"
+        bindinput="onNameInput"
+      />
+      <view class="address">{{address || '尚未选择地点'}}</view>
+    </view>
+    <button class="reselect-button" bindtap="reselectLocation">重选</button>
+  </view>
+
+  <view class="section">
+    <view class="section-label">放进哪个分类</view>
+    <view class="category-grid">
+      <button
+        wx:for="{{categoryOptions}}"
+        wx:key="id"
+        class="category-option {{item.active ? 'active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectCategory"
+      >
+        <text class="category-emoji">{{item.emoji}}</text>
+        <text>{{item.name}}</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="section compact-section">
+    <view class="switch-row">
+      <view>
+        <view class="switch-title">我还想去</view>
+        <view class="switch-copy">在“待去”筛选中显示这个地点</view>
+      </view>
+      <switch checked="{{wantToVisit}}" color="#396a54" bindchange="onWantChange" />
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-label">简单记两句 <text class="optional">选填</text></view>
+    <textarea
+      class="note-input"
+      value="{{note}}"
+      maxlength="300"
+      placeholder="为什么想去、想吃什么，或者其他提醒……"
+      auto-height
+      bindinput="onNoteInput"
+    ></textarea>
+    <view class="word-count">{{note.length}} / 300</view>
+  </view>
+
+  <view class="save-area">
+    <button class="save-button" bindtap="savePlace">保存到地图</button>
+    <button class="delete-button" wx:if="{{editing}}" bindtap="deletePlace">删除这个地点</button>
+  </view>
+</view>

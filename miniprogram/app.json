@@ -1,0 +1,22 @@
+{
+  "pages": [
+    "pages/map/index",
+    "pages/place/index"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#f5f2eb",
+    "backgroundTextStyle": "dark"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于显示当前位置并计算与你收藏地点的距离"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
