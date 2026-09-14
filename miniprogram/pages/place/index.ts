@@ -1,6 +1,6 @@
 import { createId, loadSnapshot, removePlace, upsertPlace } from "../../utils/storage";
 import { Category, Place, Visit } from "../../utils/types";
-import { categoryIconPath } from "../../utils/category-icon";
+import { categoryIconPath, normalizeCategorySymbolText, normalizeCategorySymbolType } from "../../utils/category-icon";
 import { categoryColor } from "../../utils/category-color";
 
 type LifecycleStatus = "want" | "visited";
@@ -18,6 +18,9 @@ Page({
     categories: [] as Category[],
     selectedCategoryIconPath: "",
     selectedCategorySoftColor: "#EAF3FF",
+    selectedCategoryColor: "#0071E3",
+    selectedCategoryUsesText: false,
+    selectedCategorySymbolText: "",
     wantToVisit: true,
     lifecycleStatus: "want" as LifecycleStatus,
     initialLifecycleStatus: "want" as LifecycleStatus,
@@ -86,12 +89,18 @@ Page({
         return {
           ...item,
           iconPath: categoryIconPath(item.iconKey, item.colorKey),
+          usesText: normalizeCategorySymbolType(item.symbolType) === "text",
+          symbolText: normalizeCategorySymbolText(item.symbolText),
+          color: palette.hex,
           active,
           style: active ? `border-color:${palette.hex};background:${palette.soft}` : ""
         };
       }),
       selectedCategoryIconPath: selected ? categoryIconPath(selected.iconKey, selected.colorKey) : "",
-      selectedCategorySoftColor: selected ? categoryColor(selected.colorKey).soft : "#EAF3FF"
+      selectedCategorySoftColor: selected ? categoryColor(selected.colorKey).soft : "#EAF3FF",
+      selectedCategoryColor: selected ? categoryColor(selected.colorKey).hex : "#0071E3",
+      selectedCategoryUsesText: selected ? normalizeCategorySymbolType(selected.symbolType) === "text" : false,
+      selectedCategorySymbolText: selected ? normalizeCategorySymbolText(selected.symbolText) : ""
     });
   },
 

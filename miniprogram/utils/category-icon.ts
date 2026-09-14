@@ -29,3 +29,21 @@ export function normalizeCategoryIconKey(value: unknown): string {
 export function categoryIconPath(iconKey: string, colorKey = "blue"): string {
   return `/assets/category-icons/${normalizeCategoryColorKey(colorKey)}-${normalizeCategoryIconKey(iconKey)}.png`;
 }
+
+export function normalizeCategorySymbolType(value: unknown): "icon" | "text" {
+  return value === "text" ? "text" : "icon";
+}
+
+export function normalizeCategorySymbolText(value: unknown): string {
+  const compact = Array.from(typeof value === "string" ? value.trim().replace(/\s+/g, "") : "");
+  if (compact.length === 1 || compact.length === 2) {
+    const candidate = compact.join("");
+    if (/^[A-Za-z0-9]{1,2}$/.test(candidate)) return candidate.toUpperCase();
+  }
+  if (compact.length === 1) {
+    const first = compact[0];
+    const code = first.codePointAt(0) || 0;
+    if (code >= 0x3400 && code <= 0x9fff) return first;
+  }
+  return "";
+}

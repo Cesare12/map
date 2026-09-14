@@ -2,8 +2,10 @@ import AppKit
 
 let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 let iconOutput = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
+let clusterOutput = output.deletingLastPathComponent().appendingPathComponent("clusters", isDirectory: true)
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: iconOutput, withIntermediateDirectories: true)
+try FileManager.default.createDirectory(at: clusterOutput, withIntermediateDirectories: true)
 let white = NSColor.white
 
 struct Palette {
@@ -26,7 +28,7 @@ let palettes = [
   Palette(key: "purple", color: rgb(137, 68, 171))
 ]
 
-for directory in [output, iconOutput] {
+for directory in [output, iconOutput, clusterOutput] {
   let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
   for file in files where file.pathExtension.lowercased() == "png" {
     try FileManager.default.removeItem(at: file)
@@ -128,6 +130,24 @@ func drawCheckBadge(_ accent: NSColor) {
 }
 
 for palette in palettes {
+  for state in State.allCases {
+    let image = NSImage(size: NSSize(width: 72, height: 88))
+    image.lockFocus()
+    NSGraphicsContext.current?.imageInterpolation = .high
+    let pin = markerPath()
+    if state == .want { fill(pin, white); stroke(pin, palette.color, 3) }
+    else { fill(pin, palette.color); stroke(pin, white, 3); drawCheckBadge(palette.color) }
+    image.unlockFocus()
+    try pngData(image).write(to: output.appendingPathComponent("\(palette.key)-text-\(state.rawValue).png"))
+  }
+
+  let cluster = NSImage(size: NSSize(width: 72, height: 72))
+  cluster.lockFocus()
+  let clusterCircle = circle(36, 36, 28)
+  fill(clusterCircle, palette.color); stroke(clusterCircle, white, 4)
+  cluster.unlockFocus()
+  try pngData(cluster).write(to: clusterOutput.appendingPathComponent("\(palette.key).png"))
+
   for kind in Kind.allCases {
     for state in State.allCases {
       let image = NSImage(size: NSSize(width: 72, height: 88))
@@ -151,6 +171,13 @@ for palette in palettes {
     try pngData(icon).write(to: iconOutput.appendingPathComponent("\(palette.key)-\(kind.rawValue).png"))
   }
 }
+
+let mixedCluster = NSImage(size: NSSize(width: 72, height: 72))
+mixedCluster.lockFocus()
+let mixedCircle = circle(36, 36, 28)
+fill(mixedCircle, rgb(99, 99, 102)); stroke(mixedCircle, white, 4)
+mixedCluster.unlockFocus()
+try pngData(mixedCluster).write(to: clusterOutput.appendingPathComponent("mixed.png"))
 
 let allIcon = NSImage(size: NSSize(width: 72, height: 72))
 allIcon.lockFocus()

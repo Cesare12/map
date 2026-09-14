@@ -1,7 +1,8 @@
 <view class="editor-page">
   <view class="place-hero">
-    <view class="hero-pin" style="background: {{selectedCategorySoftColor}}">
-      <image src="{{selectedCategoryIconPath}}" mode="aspectFit" />
+    <view class="hero-pin" style="background: {{selectedCategorySoftColor}}; color: {{selectedCategoryColor}}">
+      <text class="category-symbol-text" wx:if="{{selectedCategoryUsesText}}">{{selectedCategorySymbolText}}</text>
+      <image src="{{selectedCategoryIconPath}}" mode="aspectFit" wx:else />
     </view>
     <view class="hero-content">
       <input
@@ -27,7 +28,8 @@
         data-id="{{item.id}}"
         bindtap="selectCategory"
       >
-        <image class="category-emoji" src="{{item.iconPath}}" mode="aspectFit" />
+        <text class="category-symbol-text" style="color: {{item.color}}" wx:if="{{item.usesText}}">{{item.symbolText}}</text>
+        <image class="category-emoji" src="{{item.iconPath}}" mode="aspectFit" wx:else />
         <text>{{item.name}}</text>
         <text class="category-check" wx:if="{{item.active}}">✓</text>
       </button>

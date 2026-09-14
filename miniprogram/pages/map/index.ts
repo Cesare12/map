@@ -1,8 +1,8 @@
 import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setCategoryAppearance, setWantToVisit } from "../../utils/storage";
 import { distanceMeters, formatDistance, isInsideRegion } from "../../utils/geo";
 import { formatVisitTime } from "../../utils/format";
-import { markerIconPath } from "../../utils/marker";
-import { CATEGORY_ICON_OPTIONS, categoryIconPath } from "../../utils/category-icon";
+import { clusterIconPath, markerIconPath } from "../../utils/marker";
+import { CATEGORY_ICON_OPTIONS, categoryIconPath, normalizeCategorySymbolText, normalizeCategorySymbolType } from "../../utils/category-icon";
 import { CATEGORY_COLOR_OPTIONS, categoryColor } from "../../utils/category-color";
 import { Category, CurrentLocation, Place } from "../../utils/types";
 
@@ -17,6 +17,9 @@ interface PlaceView extends Place {
   categoryColorKey: string;
   categoryColor: string;
   categorySoftColor: string;
+  categorySymbolType: "icon" | "text";
+  categorySymbolText: string;
+  categoryUsesText: boolean;
   distance: number | null;
   distanceLabel: string;
   statusLabel: string;
@@ -65,6 +68,9 @@ Page({
     newCategoryName: "",
     newCategoryIconKey: "other",
     newCategoryColorKey: "blue",
+    newCategoryColor: "#0071E3",
+    newCategorySymbolType: "icon" as "icon" | "text",
+    newCategorySymbolText: "",
     categoryColorOptions: CATEGORY_COLOR_OPTIONS.map((item) => ({
       ...item,
       active: item.key === "blue"
@@ -86,10 +92,13 @@ Page({
   onReady() {
     this.mapContext = wx.createMapContext("mainMap", this);
     if (this.mapContext && typeof this.mapContext.initMarkerCluster === "function") {
+      if (typeof this.mapContext.on === "function") {
+        this.mapContext.on("markerClusterCreate", (event: any) => this.renderMarkerClusters(event));
+      }
       this.mapContext.initMarkerCluster({
-        enableDefaultStyle: true,
+        enableDefaultStyle: false,
         zoomOnClick: true,
-        gridSize: 60,
+        gridSize: 72,
         success: () => {
           this.markerClusterReady = true;
           this.setData({ fallbackMarkers: [] }, () => this.syncMapMarkers());
@@ -107,6 +116,46 @@ Page({
       markers: this.data.markers,
       clear: true,
       fail: (error: any) => console.warn("同步聚合标记失败", error)
+    });
+  },
+
+  renderMarkerClusters(event: any) {
+    if (!this.mapContext || typeof this.mapContext.addMarkers !== "function") return;
+    const clusters = event && Array.isArray(event.clusters) ? event.clusters : [];
+    const placesByMarkerId = new Map<number, PlaceView>(
+      (this.data.filteredPlaces as PlaceView[]).map((place) => [place.markerId, place])
+    );
+    const clusterMarkers = clusters.map((cluster: any) => {
+      const markerIds = Array.isArray(cluster.markerIds) ? cluster.markerIds.map(Number) : [];
+      const places = markerIds.map((id: number) => placesByMarkerId.get(id)).filter(Boolean) as PlaceView[];
+      const first = places[0];
+      const sameCategory = !!first && places.every((place) => place.categoryId === first.categoryId);
+      const countText = String(markerIds.length);
+      const center = cluster.center || {};
+      return {
+        id: 100000000 + Number(cluster.clusterId),
+        clusterId: Number(cluster.clusterId),
+        latitude: Number(center.latitude),
+        longitude: Number(center.longitude),
+        iconPath: clusterIconPath(sameCategory ? first.categoryColorKey : undefined),
+        width: 40,
+        height: 40,
+        anchor: { x: 0.5, y: 0.5 },
+        zIndex: 20,
+        label: {
+          content: countText,
+          color: "#FFFFFF",
+          fontSize: 14,
+          anchorX: countText.length === 1 ? -4 : countText.length === 2 ? -8 : -11,
+          anchorY: -8,
+          textAlign: "center"
+        }
+      };
+    }).filter((marker: any) => Number.isFinite(marker.latitude) && Number.isFinite(marker.longitude));
+    if (!clusterMarkers.length) return;
+    this.mapContext.addMarkers({
+      markers: clusterMarkers,
+      fail: (error: any) => console.warn("绘制聚合标记失败", error)
     });
   },
 
@@ -235,6 +284,8 @@ Page({
       const distance = this.currentLocation ? distanceMeters(this.currentLocation, place) : null;
       const latestVisit = place.visits.length ? place.visits[place.visits.length - 1] : null;
       const hasVisited = place.visits.length > 0;
+      const symbolType = normalizeCategorySymbolType(category ? category.symbolType : "icon");
+      const symbolText = symbolType === "text" ? normalizeCategorySymbolText(category ? category.symbolText : "") : "";
       return {
         ...place,
         markerId: this.markerIdFor(place.id),
@@ -245,6 +296,9 @@ Page({
         categoryColorKey: palette.key,
         categoryColor: palette.hex,
         categorySoftColor: palette.soft,
+        categorySymbolType: symbolType,
+        categorySymbolText: symbolText,
+        categoryUsesText: symbolType === "text" && !!symbolText,
         distance,
         distanceLabel: formatDistance(distance),
         statusLabel: hasVisited ? `去过 ${place.visits.length} 次` : "等待拔草",
@@ -269,12 +323,22 @@ Page({
       id: place.markerId,
       latitude: place.latitude,
       longitude: place.longitude,
-      iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit),
+      iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit, place.categoryUsesText),
       width: place.selected ? 36 : 31,
       height: place.selected ? 44 : 38,
       zIndex: place.selected ? 9 : 1,
       joinCluster: true,
-      anchor: { x: 0.5, y: 1 }
+      anchor: { x: 0.5, y: 1 },
+      ...(place.categoryUsesText ? {
+        label: {
+          content: place.categorySymbolText,
+          color: place.wantToVisit ? place.categoryColor : "#FFFFFF",
+          fontSize: place.selected ? 13 : 12,
+          anchorX: place.categorySymbolText.length === 1 ? (place.selected ? -4 : -3) : (place.selected ? -8 : -7),
+          anchorY: place.selected ? -33 : -29,
+          textAlign: "center"
+        }
+      } : {})
     }));
 
     const categoryTabs = [
@@ -282,6 +346,8 @@ Page({
         id: "all",
         name: "全部",
         iconPath: "/assets/category-icons/all.png",
+        usesText: false,
+        symbolText: "",
         count: rawPlaces.length,
         active: categoryId === "all",
         style: categoryId === "all" ? "border-color:#007aff;background:#eaf3ff;color:#007aff" : ""
@@ -289,6 +355,8 @@ Page({
       ...categories.map((category) => ({
         ...category,
         iconPath: categoryIconPath(category.iconKey, category.colorKey),
+        usesText: normalizeCategorySymbolType(category.symbolType) === "text",
+        symbolText: normalizeCategorySymbolText(category.symbolText),
         style: category.id === categoryId
           ? `border-color:${category.color};background:${categoryColor(category.colorKey).soft};color:${category.color}`
           : "",
@@ -324,6 +392,8 @@ Page({
       return {
         ...category,
         iconPath: categoryIconPath(category.iconKey, category.colorKey),
+        usesText: normalizeCategorySymbolType(category.symbolType) === "text",
+        symbolText: normalizeCategorySymbolText(category.symbolText),
         softColor: palette.soft,
         count,
         countLabel: count ? `${count} 个地点` : "暂无地点"
@@ -534,7 +604,9 @@ Page({
       editingCategoryId: "",
       newCategoryName: "",
       newCategoryIconKey: "other",
-      newCategoryColorKey: "blue"
+      newCategoryColorKey: "blue",
+      newCategorySymbolType: "icon",
+      newCategorySymbolText: ""
     }, () => {
       this.refreshCategoryColorOptions();
       this.refreshCategoryIconOptions();
@@ -559,7 +631,9 @@ Page({
       editingCategoryId: category.id,
       newCategoryName: category.name,
       newCategoryIconKey: category.iconKey,
-      newCategoryColorKey: category.colorKey
+      newCategoryColorKey: category.colorKey,
+      newCategorySymbolType: normalizeCategorySymbolType(category.symbolType),
+      newCategorySymbolText: normalizeCategorySymbolText(category.symbolText)
     }, () => {
       this.refreshCategoryColorOptions();
       this.refreshCategoryIconOptions();
@@ -580,7 +654,9 @@ Page({
       editingCategoryId: category.id,
       newCategoryName: category.name,
       newCategoryIconKey: category.iconKey,
-      newCategoryColorKey: category.colorKey
+      newCategoryColorKey: category.colorKey,
+      newCategorySymbolType: normalizeCategorySymbolType(category.symbolType),
+      newCategorySymbolText: normalizeCategorySymbolText(category.symbolText)
     }, () => {
       this.refreshCategoryColorOptions();
       this.refreshCategoryIconOptions();
@@ -614,14 +690,16 @@ Page({
       categoryIconOptions: CATEGORY_ICON_OPTIONS.map((item) => ({
         ...item,
         iconPath: categoryIconPath(item.key, colorKey),
-        active: item.key === selected
+        active: this.data.newCategorySymbolType === "icon" && item.key === selected
       }))
     });
   },
 
   refreshCategoryColorOptions() {
     const selected = this.data.newCategoryColorKey;
+    const selectedPalette = categoryColor(selected);
     this.setData({
+      newCategoryColor: selectedPalette.hex,
       categoryColorOptions: CATEGORY_COLOR_OPTIONS.map((item) => ({
         ...item,
         active: item.key === selected
@@ -630,7 +708,15 @@ Page({
   },
 
   selectCategoryIcon(event: any) {
-    this.setData({ newCategoryIconKey: event.currentTarget.dataset.key }, () => this.refreshCategoryIconOptions());
+    this.setData({ newCategoryIconKey: event.currentTarget.dataset.key, newCategorySymbolType: "icon" }, () => this.refreshCategoryIconOptions());
+  },
+
+  selectCategoryTextMode() {
+    this.setData({ newCategorySymbolType: "text" }, () => this.refreshCategoryIconOptions());
+  },
+
+  onCategorySymbolTextInput(event: any) {
+    this.setData({ newCategorySymbolText: event.detail.value });
   },
 
   selectCategoryColor(event: any) {
@@ -657,12 +743,20 @@ Page({
       wx.showToast({ title: "分类名称已存在", icon: "none" });
       return;
     }
+    const symbolType = this.data.newCategorySymbolType as "icon" | "text";
+    const symbolText = symbolType === "text" ? normalizeCategorySymbolText(this.data.newCategorySymbolText) : "";
+    if (symbolType === "text" && !symbolText) {
+      wx.showToast({ title: "请输入1个汉字或1–2个字母", icon: "none" });
+      return;
+    }
     if (this.data.categoryEditorMode === "edit") {
       const category = setCategoryAppearance(
         this.data.editingCategoryId,
         name,
         this.data.newCategoryIconKey,
-        this.data.newCategoryColorKey
+        this.data.newCategoryColorKey,
+        symbolType,
+        symbolText
       );
       if (!category) return;
       this.hideCategoryCreator();
@@ -670,7 +764,7 @@ Page({
       wx.showToast({ title: "分类已更新", icon: "success" });
       return;
     }
-    const category = addCategory(name, this.data.newCategoryIconKey, this.data.newCategoryColorKey);
+    const category = addCategory(name, this.data.newCategoryIconKey, this.data.newCategoryColorKey, symbolType, symbolText);
     this.hideCategoryCreator();
     this.loadData();
     this.setData({ selectedCategoryId: category.id }, () => this.applyFilters());

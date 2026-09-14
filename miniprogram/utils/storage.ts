@@ -1,14 +1,14 @@
 import { Category, Place, Snapshot, Visit } from "./types";
-import { normalizeCategoryIconKey } from "./category-icon";
+import { normalizeCategoryIconKey, normalizeCategorySymbolText, normalizeCategorySymbolType } from "./category-icon";
 import { CATEGORY_COLOR_OPTIONS, categoryColor, normalizeCategoryColorKey } from "./category-color";
 
 const STORAGE_KEY = "want_to_go_map_snapshot_v1";
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: "food", name: "美食", emoji: "🍜", iconKey: "food", colorKey: "orange", color: "#C93400", builtIn: true },
-  { id: "pet", name: "宠物", emoji: "🐾", iconKey: "pet", colorKey: "green", color: "#248A3D", builtIn: true },
-  { id: "car", name: "洗车", emoji: "🚗", iconKey: "car", colorKey: "blue", color: "#0071E3", builtIn: true },
-  { id: "other", name: "其他", emoji: "📍", iconKey: "other", colorKey: "purple", color: "#8944AB", builtIn: true }
+  { id: "food", name: "美食", emoji: "🍜", iconKey: "food", symbolType: "icon", symbolText: "", colorKey: "orange", color: "#C93400", builtIn: true },
+  { id: "pet", name: "宠物", emoji: "🐾", iconKey: "pet", symbolType: "icon", symbolText: "", colorKey: "green", color: "#248A3D", builtIn: true },
+  { id: "car", name: "洗车", emoji: "🚗", iconKey: "car", symbolType: "icon", symbolText: "", colorKey: "blue", color: "#0071E3", builtIn: true },
+  { id: "other", name: "其他", emoji: "📍", iconKey: "other", symbolType: "icon", symbolText: "", colorKey: "purple", color: "#8944AB", builtIn: true }
 ];
 
 function cloneDefaults(): Category[] {
@@ -67,6 +67,10 @@ export function loadSnapshot(): Snapshot {
           return {
             ...item,
             iconKey: normalizeCategoryIconKey(item.iconKey || item.id),
+            symbolType: normalizeCategorySymbolType(item.symbolType),
+            symbolText: normalizeCategorySymbolType(item.symbolType) === "text"
+              ? normalizeCategorySymbolText(item.symbolText)
+              : "",
             colorKey,
             color: categoryColor(colorKey).hex
           };
@@ -95,7 +99,14 @@ export function createId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function addCategory(name: string, iconKey = "other", colorKey?: string, emoji = "🏷️"): Category {
+export function addCategory(
+  name: string,
+  iconKey = "other",
+  colorKey?: string,
+  symbolType: "icon" | "text" = "icon",
+  symbolText = "",
+  emoji = "🏷️"
+): Category {
   const snapshot = loadSnapshot();
   const trimmed = name.trim().slice(0, 8);
   const duplicate = snapshot.categories.find((item) => item.name === trimmed);
@@ -108,6 +119,8 @@ export function addCategory(name: string, iconKey = "other", colorKey?: string, 
     name: trimmed,
     emoji,
     iconKey: normalizeCategoryIconKey(iconKey),
+    symbolType: normalizeCategorySymbolType(symbolType),
+    symbolText: normalizeCategorySymbolType(symbolType) === "text" ? normalizeCategorySymbolText(symbolText) : "",
     colorKey: selectedColorKey,
     color: categoryColor(selectedColorKey).hex,
     builtIn: false
@@ -117,7 +130,14 @@ export function addCategory(name: string, iconKey = "other", colorKey?: string, 
   return category;
 }
 
-export function setCategoryAppearance(categoryId: string, name: string, iconKey: string, colorKey: string): Category | null {
+export function setCategoryAppearance(
+  categoryId: string,
+  name: string,
+  iconKey: string,
+  colorKey: string,
+  symbolType: "icon" | "text" = "icon",
+  symbolText = ""
+): Category | null {
   const snapshot = loadSnapshot();
   const category = snapshot.categories.find((item) => item.id === categoryId);
   if (!category) return null;
@@ -125,6 +145,8 @@ export function setCategoryAppearance(categoryId: string, name: string, iconKey:
   if (!trimmed || snapshot.categories.some((item) => item.id !== categoryId && item.name === trimmed)) return null;
   category.name = trimmed;
   category.iconKey = normalizeCategoryIconKey(iconKey);
+  category.symbolType = normalizeCategorySymbolType(symbolType);
+  category.symbolText = category.symbolType === "text" ? normalizeCategorySymbolText(symbolText) : "";
   category.colorKey = normalizeCategoryColorKey(colorKey);
   category.color = categoryColor(category.colorKey).hex;
   saveSnapshot(snapshot);

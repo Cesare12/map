@@ -133,6 +133,14 @@
   height: 27rpx;
 }
 
+.category-chip-text-icon {
+  min-width: 27rpx;
+  font-size: 21rpx;
+  font-weight: 700;
+  line-height: 27rpx;
+  text-align: center;
+}
+
 .manage-chip {
   border-style: dashed;
   color: #007aff;
@@ -324,6 +332,13 @@
   height: 37rpx;
 }
 
+.category-symbol-text {
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
 .selected-category {
   color: #6c6c70;
   font-size: 20rpx;
@@ -501,6 +516,11 @@
   height: 24rpx;
 }
 
+.nearby-category .category-symbol-text {
+  min-width: 24rpx;
+  font-size: 18rpx;
+}
+
 .nearby-distance {
   color: #6c6c70;
 }
@@ -641,6 +661,10 @@
   height: 36rpx;
 }
 
+.manager-icon .category-symbol-text {
+  font-size: 26rpx;
+}
+
 .manager-copy {
   flex: 1;
   min-width: 0;
@@ -725,6 +749,55 @@
 
 .editor-icon-grid {
   margin-top: 14rpx;
+}
+
+.text-symbol-sample {
+  color: #007aff;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.symbol-text-editor {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 14rpx;
+  padding: 18rpx;
+  border-radius: 18rpx;
+  background: #f2f2f7;
+}
+
+.symbol-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 64rpx;
+  height: 64rpx;
+  border: 3rpx solid;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.symbol-text-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.symbol-text-input {
+  height: 48rpx;
+  color: #1c1c1e;
+  font-size: 25rpx;
+  font-weight: 600;
+}
+
+.symbol-text-help {
+  color: #8e8e93;
+  font-size: 18rpx;
+  line-height: 1.35;
 }
 
 .editor-scroll-spacer {

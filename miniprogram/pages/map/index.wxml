@@ -40,7 +40,8 @@
           data-id="{{item.id}}"
           bindtap="selectCategory"
         >
-          <image class="category-chip-icon" src="{{item.iconPath}}" mode="aspectFit" />
+          <text class="category-chip-text-icon" style="color: {{item.color}}" wx:if="{{item.usesText}}">{{item.symbolText}}</text>
+          <image class="category-chip-icon" src="{{item.iconPath}}" mode="aspectFit" wx:else />
           <text>{{item.name}}</text>
         </button>
         <button class="category-chip manage-chip" bindtap="showCategoryManager" aria-label="管理分类">
@@ -79,7 +80,10 @@
     <view class="selected-card" wx:if="{{selectedPlace}}">
       <view class="selected-head">
         <view class="selected-tags">
-          <view class="category-mark" style="background: {{selectedPlace.categorySoftColor}}"><image src="{{selectedPlace.categoryIconPath}}" mode="aspectFit" /></view>
+          <view class="category-mark" style="background: {{selectedPlace.categorySoftColor}}; color: {{selectedPlace.categoryColor}}">
+            <text class="category-symbol-text" wx:if="{{selectedPlace.categoryUsesText}}">{{selectedPlace.categorySymbolText}}</text>
+            <image src="{{selectedPlace.categoryIconPath}}" mode="aspectFit" wx:else />
+          </view>
           <view>
             <view class="selected-category" style="color: {{selectedPlace.categoryColor}}">{{selectedPlace.categoryName}}</view>
             <view class="lifecycle-label {{selectedPlace.lifecycleClass}}">{{selectedPlace.lifecycleIcon}} {{selectedPlace.lifecycleLabel}}</view>
@@ -123,7 +127,11 @@
             bindtap="selectPlaceCard"
           >
             <view class="nearby-card-head">
-              <view class="nearby-category" style="color: {{item.categoryColor}}"><image src="{{item.categoryIconPath}}" mode="aspectFit" />{{item.categoryName}}</view>
+              <view class="nearby-category" style="color: {{item.categoryColor}}">
+                <text class="category-symbol-text" wx:if="{{item.categoryUsesText}}">{{item.categorySymbolText}}</text>
+                <image src="{{item.categoryIconPath}}" mode="aspectFit" wx:else />
+                <text>{{item.categoryName}}</text>
+              </view>
               <view class="nearby-distance">{{item.distanceLabel}}</view>
             </view>
             <view class="nearby-name">{{item.name}}</view>
@@ -144,7 +152,7 @@
         <button class="sheet-button done" bindtap="categorySheetPrimary" disabled="{{categoryEditorMode != 'manage' && !newCategoryName}}">{{categoryEditorMode == 'manage' ? '新建' : '完成'}}</button>
       </view>
       <block wx:if="{{categoryEditorMode == 'manage'}}">
-        <view class="modal-copy">点按分类即可修改名称、颜色和图标</view>
+        <view class="modal-copy">点按分类即可修改名称、颜色和标记</view>
         <scroll-view class="category-manager-scroll" scroll-y="{{true}}" enhanced="{{true}}">
           <button
             wx:for="{{categoryManagerItems}}"
@@ -154,7 +162,8 @@
             bindtap="editCategoryFromManager"
           >
             <view class="manager-icon" style="background: {{item.softColor}}">
-              <image src="{{item.iconPath}}" mode="aspectFit" />
+              <text class="category-symbol-text" style="color: {{item.color}}" wx:if="{{item.usesText}}">{{item.symbolText}}</text>
+              <image src="{{item.iconPath}}" mode="aspectFit" wx:else />
             </view>
             <view class="manager-copy">
               <view class="manager-name">{{item.name}}</view>
@@ -166,7 +175,7 @@
       </block>
       <block wx:else>
         <scroll-view class="category-editor-scroll" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
-          <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">名称、图标与颜色可以分别设置</view>
+          <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">名称、标记与颜色可以分别设置</view>
           <view class="modal-copy" wx:else>修改后，已有地点的图钉会一起更新</view>
           <input
             class="category-input"
@@ -177,8 +186,16 @@
             bindinput="onCategoryNameInput"
             bindconfirm="saveCategoryEditor"
           />
-          <view class="icon-picker-label">图标 · 12 种可选</view>
+          <view class="icon-picker-label">标记 · 图标或自定义文字</view>
           <view class="icon-picker-grid editor-icon-grid">
+            <button
+              class="icon-option text-symbol-option {{newCategorySymbolType == 'text' ? 'active' : ''}}"
+              bindtap="selectCategoryTextMode"
+              aria-label="自定义文字"
+            >
+              <text class="text-symbol-sample">字</text>
+              <text>文字</text>
+            </button>
             <button
               wx:for="{{categoryIconOptions}}"
               wx:key="key"
@@ -190,6 +207,21 @@
               <image src="{{item.iconPath}}" mode="aspectFit" />
               <text>{{item.name}}</text>
             </button>
+          </view>
+          <view class="symbol-text-editor" wx:if="{{newCategorySymbolType == 'text'}}">
+            <view class="symbol-preview" style="border-color: {{newCategoryColor}}; color: {{newCategoryColor}}">
+              <text>{{newCategorySymbolText || '字'}}</text>
+            </view>
+            <view class="symbol-text-copy">
+              <input
+                class="symbol-text-input"
+                value="{{newCategorySymbolText}}"
+                maxlength="2"
+                placeholder="1个汉字或1–2个字母"
+                bindinput="onCategorySymbolTextInput"
+              />
+              <view class="symbol-text-help">由你决定显示什么，系统不会从分类名称自动猜字</view>
+            </view>
           </view>
           <view class="icon-picker-label">颜色 · 8 种可选</view>
           <view class="color-picker-row">

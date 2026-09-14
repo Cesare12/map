@@ -32,6 +32,18 @@
   height: 40rpx;
 }
 
+.category-symbol-text {
+  min-width: 31rpx;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.hero-pin .category-symbol-text {
+  font-size: 29rpx;
+}
+
 .hero-content {
   flex: 1;
   min-width: 0;
