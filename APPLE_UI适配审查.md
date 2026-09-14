@@ -38,7 +38,7 @@
 ## 微信地图实现依据
 
 - 微信 `map` 组件与腾讯位置服务使用同一数据体系，并支持地图展示、POI 与坐标交互。
-- `joinCluster` 决定标记是否参加聚合；`MapContext.initMarkerCluster` 可配置默认聚合样式、点击拆分和 60px 聚合距离。
+- `joinCluster` 决定标记是否参加聚合；`MapContext.initMarkerCluster` 配置默认聚合样式、点击拆分和 60px 聚合距离，再通过 `MapContext.addMarkers` 把当前筛选结果同步给聚合器。
 - `map` 的点击事件从基础库 2.9.0 起返回经纬度；本项目基础库为 3.10.0。
 
 ## Apple 官方依据

@@ -44,6 +44,7 @@ Page({
     filteredPlaces: [] as PlaceView[],
     nearbyPlaces: [] as PlaceView[],
     markers: [] as any[],
+    fallbackMarkers: [] as any[],
     categories: [] as Category[],
     categoryTabs: [] as any[],
     statusTabs: [] as any[],
@@ -80,6 +81,7 @@ Page({
   locationRequested: false,
   markerIdByPlaceId: new Map<string, number>(),
   nextMarkerId: 1,
+  markerClusterReady: false,
 
   onReady() {
     this.mapContext = wx.createMapContext("mainMap", this);
@@ -87,9 +89,25 @@ Page({
       this.mapContext.initMarkerCluster({
         enableDefaultStyle: true,
         zoomOnClick: true,
-        gridSize: 60
+        gridSize: 60,
+        success: () => {
+          this.markerClusterReady = true;
+          this.setData({ fallbackMarkers: [] }, () => this.syncMapMarkers());
+        },
+        fail: () => this.setData({ fallbackMarkers: this.data.markers })
       });
+    } else {
+      this.setData({ fallbackMarkers: this.data.markers });
     }
+  },
+
+  syncMapMarkers() {
+    if (!this.markerClusterReady || !this.mapContext || typeof this.mapContext.addMarkers !== "function") return;
+    this.mapContext.addMarkers({
+      markers: this.data.markers,
+      clear: true,
+      fail: (error: any) => console.warn("同步聚合标记失败", error)
+    });
   },
 
   onLoad() {
@@ -315,6 +333,7 @@ Page({
       filteredPlaces: views,
       nearbyPlaces: nearby,
       markers,
+      fallbackMarkers: this.markerClusterReady ? [] : markers,
       categoryTabs,
       statusTabs,
       categoryManagerItems,
@@ -324,7 +343,10 @@ Page({
       emptyCopy,
       emptyIcon,
       viewportLabel: `${views.length} 个地点`
-    }, () => this.updateViewportCount());
+    }, () => {
+      this.syncMapMarkers();
+      this.updateViewportCount();
+    });
   },
 
   selectCategory(event: any) {
