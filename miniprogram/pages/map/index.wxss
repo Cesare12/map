@@ -133,6 +133,63 @@
   height: 27rpx;
 }
 
+.manage-chip {
+  border-style: dashed;
+  color: #007aff;
+}
+
+.manage-symbol {
+  position: relative;
+  top: -3rpx;
+  letter-spacing: 1rpx;
+  font-size: 21rpx;
+  font-weight: 600;
+}
+
+.placement-banner {
+  position: absolute;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  min-width: 390rpx;
+  padding: 17rpx 17rpx 17rpx 24rpx;
+  border: 1rpx solid rgba(60, 60, 67, 0.08);
+  border-radius: 23rpx;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.14);
+}
+
+.placement-title {
+  color: #1c1c1e;
+  font-size: 24rpx;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.placement-copy {
+  margin-top: 3rpx;
+  color: #8e8e93;
+  font-size: 20rpx;
+  white-space: nowrap;
+}
+
+.placement-cancel {
+  width: auto;
+  min-width: 88rpx;
+  height: 64rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border-radius: 15rpx;
+  background: #f2f2f7;
+  color: #007aff;
+  font-size: 22rpx;
+  line-height: 64rpx;
+}
+
 .map-actions {
   position: absolute;
   right: 24rpx;
@@ -536,6 +593,78 @@
   margin-top: 7rpx;
   color: #8e8e93;
   font-size: 22rpx;
+}
+
+.category-manager-scroll {
+  max-height: 600rpx;
+  margin-top: 22rpx;
+  border-radius: 20rpx;
+  background: #f2f2f7;
+}
+
+.category-manager-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 112rpx;
+  margin: 0;
+  padding: 14rpx 20rpx;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.category-manager-row + .category-manager-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 92rpx;
+  right: 0;
+  height: 1rpx;
+  background: rgba(60, 60, 67, 0.12);
+}
+
+.manager-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
+}
+
+.manager-icon image {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.manager-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 17rpx;
+}
+
+.manager-name {
+  color: #1c1c1e;
+  font-size: 27rpx;
+  line-height: 1.25;
+}
+
+.manager-count {
+  margin-top: 4rpx;
+  color: #8e8e93;
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+.manager-chevron {
+  margin-left: 14rpx;
+  color: #c7c7cc;
+  font-size: 43rpx;
+  font-weight: 300;
 }
 
 .category-input {

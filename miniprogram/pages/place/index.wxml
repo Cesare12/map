@@ -11,7 +11,7 @@
         placeholder="地点名称"
         bindinput="onNameInput"
       />
-      <view class="address">{{address || '尚未选择地点'}}</view>
+      <view class="address">{{address || (latitude && longitude ? '地图上的自选位置' : '尚未选择地点')}}</view>
     </view>
     <button class="reselect-button" bindtap="reselectLocation">重新选择</button>
   </view>

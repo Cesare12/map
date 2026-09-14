@@ -56,8 +56,10 @@ Page({
     emptyCopy: "",
     emptyIcon: "📍",
     nearbyCollapsed: false,
+    manualPinMode: false,
     categoryCreatorVisible: false,
-    categoryEditorMode: "create" as "create" | "edit",
+    categoryEditorMode: "manage" as "manage" | "create" | "edit",
+    categoryManagerItems: [] as any[],
     editingCategoryId: "",
     newCategoryName: "",
     newCategoryIconKey: "other",
@@ -81,6 +83,13 @@ Page({
 
   onReady() {
     this.mapContext = wx.createMapContext("mainMap", this);
+    if (this.mapContext && typeof this.mapContext.initMarkerCluster === "function") {
+      this.mapContext.initMarkerCluster({
+        enableDefaultStyle: true,
+        zoomOnClick: true,
+        gridSize: 60
+      });
+    }
   },
 
   onLoad() {
@@ -243,9 +252,10 @@ Page({
       latitude: place.latitude,
       longitude: place.longitude,
       iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit),
-      width: place.selected ? 36 : 30,
-      height: place.selected ? 44 : 37,
+      width: place.selected ? 42 : 34,
+      height: place.selected ? 52 : 42,
       zIndex: place.selected ? 9 : 1,
+      joinCluster: true,
       anchor: { x: 0.5, y: 1 }
     }));
 
@@ -290,12 +300,24 @@ Page({
     }
 
     const selectedPlace = views.find((item) => item.id === this.data.selectedPlaceId) || null;
+    const categoryManagerItems = categories.map((category) => {
+      const palette = categoryColor(category.colorKey);
+      const count = rawPlaces.filter((place) => place.categoryId === category.id).length;
+      return {
+        ...category,
+        iconPath: categoryIconPath(category.iconKey, category.colorKey),
+        softColor: palette.soft,
+        count,
+        countLabel: count ? `${count} 个地点` : "暂无地点"
+      };
+    });
     this.setData({
       filteredPlaces: views,
       nearbyPlaces: nearby,
       markers,
       categoryTabs,
       statusTabs,
+      categoryManagerItems,
       selectedPlace,
       selectedPlaceId: selectedPlace ? selectedPlace.id : "",
       emptyTitle,
@@ -314,6 +336,7 @@ Page({
   },
 
   onMarkerTap(event: any) {
+    if (this.data.manualPinMode) return;
     const place = (this.data.filteredPlaces as PlaceView[]).find((item) => item.markerId === event.detail.markerId);
     if (place) this.selectPlace(place.id, false);
   },
@@ -337,6 +360,16 @@ Page({
   },
 
   addPlace() {
+    wx.showActionSheet({
+      itemList: ["搜索地图地点", "在地图上选点"],
+      success: (result: any) => {
+        if (result.tapIndex === 0) this.chooseMapLocation();
+        if (result.tapIndex === 1) this.startManualPin();
+      }
+    });
+  },
+
+  chooseMapLocation() {
     wx.chooseLocation({
       success: (result: any) => {
         const query = [
@@ -357,6 +390,34 @@ Page({
         });
       }
     });
+  },
+
+  startManualPin() {
+    this.setData({ manualPinMode: true, selectedPlaceId: "", selectedPlace: null });
+  },
+
+  cancelManualPin() {
+    this.setData({ manualPinMode: false });
+  },
+
+  onMapTap(event: any) {
+    if (!this.data.manualPinMode) return;
+    const latitude = Number(event.detail && event.detail.latitude);
+    const longitude = Number(event.detail && event.detail.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      wx.showToast({ title: "请再点一次地图", icon: "none" });
+      return;
+    }
+    this.setData({ manualPinMode: false });
+    const query = [
+      "name=",
+      "address=",
+      `latitude=${latitude}`,
+      `longitude=${longitude}`,
+      `categoryId=${encodeURIComponent(this.data.selectedCategoryId === "all" ? "" : this.data.selectedCategoryId)}`,
+      "manual=1"
+    ].join("&");
+    wx.navigateTo({ url: `/pages/place/index?${query}` });
   },
 
   editSelected() {
@@ -458,6 +519,31 @@ Page({
     });
   },
 
+  showCategoryManager() {
+    this.setData({
+      categoryCreatorVisible: true,
+      categoryEditorMode: "manage",
+      editingCategoryId: "",
+      newCategoryName: ""
+    });
+  },
+
+  editCategoryFromManager(event: any) {
+    const categoryId = event.currentTarget.dataset.id;
+    const category = (this.data.categories as Category[]).find((item) => item.id === categoryId);
+    if (!category) return;
+    this.setData({
+      categoryEditorMode: "edit",
+      editingCategoryId: category.id,
+      newCategoryName: category.name,
+      newCategoryIconKey: category.iconKey,
+      newCategoryColorKey: category.colorKey
+    }, () => {
+      this.refreshCategoryColorOptions();
+      this.refreshCategoryIconOptions();
+    });
+  },
+
   showCurrentCategoryEditor() {
     const categoryId = this.data.selectedCategoryId;
     if (categoryId === "all") {
@@ -481,6 +567,22 @@ Page({
 
   hideCategoryCreator() {
     this.setData({ categoryCreatorVisible: false, editingCategoryId: "", newCategoryName: "" });
+  },
+
+  categorySheetBack() {
+    if (this.data.categoryEditorMode === "manage") {
+      this.hideCategoryCreator();
+      return;
+    }
+    this.showCategoryManager();
+  },
+
+  categorySheetPrimary() {
+    if (this.data.categoryEditorMode === "manage") {
+      this.showCategoryCreator();
+      return;
+    }
+    this.saveCategoryEditor();
   },
 
   refreshCategoryIconOptions() {
@@ -555,16 +657,11 @@ Page({
   stopEvent() {},
 
   openMore() {
-    const canEditCategory = this.data.selectedCategoryId !== "all";
-    const itemList = canEditCategory
-      ? ["新增分类", "修改当前分类", "复制本地备份"]
-      : ["新增分类", "复制本地备份"];
     wx.showActionSheet({
-      itemList,
+      itemList: ["管理分类", "复制本地备份"],
       success: (result: any) => {
-        if (result.tapIndex === 0) this.showCategoryCreator();
-        if (canEditCategory && result.tapIndex === 1) this.showCurrentCategoryEditor();
-        if ((!canEditCategory && result.tapIndex === 1) || (canEditCategory && result.tapIndex === 2)) this.copyBackup();
+        if (result.tapIndex === 0) this.showCategoryManager();
+        if (result.tapIndex === 1) this.copyBackup();
       }
     });
   },

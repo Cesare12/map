@@ -28,6 +28,19 @@
 - 曾经去过、后来再次种草的地点只出现在当前的种草筛选中；历史到访次数仍保留在地点卡片中。
 - 修改分类颜色或图标后，该分类下所有地点、筛选按钮和编辑页会同步更新。
 
+## 地图密度与选点
+
+- 相互压盖的地点会使用带数量的聚合标记；缩放放大或点按聚合标记后自动拆开，符合 Apple Maps 对高密度兴趣点的建议。
+- 普通图钉由 30×37 调整为 34×42，选中图钉为 42×52。Apple 没有规定第三方地图标记的固定尺寸，本项目按地图信息密度和选中态可辨识度作了温和放大。
+- 分类栏末尾始终显示“管理”，用户无需先选中某个分类即可进入列表，修改已有分类的名称、颜色和图标。
+- 添加地点同时提供地图搜索和自由选点。自由选点直接保存 GCJ-02 经纬度和用户填写的店名，不依赖底图 POI 是否收录。
+
+## 微信地图实现依据
+
+- 微信 `map` 组件与腾讯位置服务使用同一数据体系，并支持地图展示、POI 与坐标交互。
+- `joinCluster` 决定标记是否参加聚合；`MapContext.initMarkerCluster` 可配置默认聚合样式、点击拆分和 60px 聚合距离。
+- `map` 的点击事件从基础库 2.9.0 起返回经纬度；本项目基础库为 3.10.0。
+
 ## Apple 官方依据
 
 - Color: https://developer.apple.com/design/human-interface-guidelines/color
@@ -37,3 +50,5 @@
 - Alerts: https://developer.apple.com/design/human-interface-guidelines/alerts
 - Maps: https://developer.apple.com/design/human-interface-guidelines/maps
 - Reminders list appearance: https://support.apple.com/en-gb/guide/iphone/iph82596cb20/ios
+- WeChat map component: https://developers.weixin.qq.com/miniprogram/dev/component/map.html
+- WeChat marker clustering: https://developers.weixin.qq.com/miniprogram/dev/api/media/map/MapContext.initMarkerCluster.html

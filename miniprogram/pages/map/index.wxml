@@ -7,6 +7,7 @@
     scale="{{mapScale}}"
     markers="{{markers}}"
     show-location="{{locationReady}}"
+    bindtap="onMapTap"
     bindmarkertap="onMarkerTap"
     bindregionchange="onRegionChange"
   ></map>
@@ -42,23 +43,35 @@
           <image class="category-chip-icon" src="{{item.iconPath}}" mode="aspectFit" />
           <text>{{item.name}}</text>
         </button>
+        <button class="category-chip manage-chip" bindtap="showCategoryManager" aria-label="管理分类">
+          <text class="manage-symbol">•••</text>
+          <text>管理</text>
+        </button>
       </view>
     </scroll-view>
   </view>
 
-  <view class="map-actions" style="top: {{mapActionsTop}}px">
+  <view class="placement-banner" wx:if="{{manualPinMode}}" style="top: {{mapActionsTop}}px">
+    <view>
+      <view class="placement-title">在地图上选择位置</view>
+      <view class="placement-copy">轻点店铺所在位置</view>
+    </view>
+    <button class="placement-cancel" bindtap="cancelManualPin">取消</button>
+  </view>
+
+  <view class="map-actions" wx:if="{{!manualPinMode}}" style="top: {{mapActionsTop}}px">
     <button class="map-action" bindtap="moveToMyLocation" aria-label="回到我的位置">⌖</button>
     <button class="map-action map-action-small" bindtap="showAllPlaces" wx:if="{{filteredPlaces.length}}" aria-label="查看全部地点">全</button>
     <button class="map-action map-action-small" bindtap="openMore" aria-label="更多操作">•••</button>
   </view>
 
-  <view class="empty-state" wx:if="{{emptyTitle}}">
+  <view class="empty-state" wx:if="{{!manualPinMode && emptyTitle}}">
     <view class="empty-icon">{{emptyIcon}}</view>
     <view class="empty-title">{{emptyTitle}}</view>
     <view class="empty-copy">{{emptyCopy}}</view>
   </view>
 
-  <view class="bottom-stack">
+  <view class="bottom-stack" wx:if="{{!manualPinMode}}">
     <view class="quick-row" wx:if="{{!selectedPlace}}">
       <button class="add-button" bindtap="addPlace"><text class="plus">＋</text><text>添加地点</text></button>
     </view>
@@ -126,49 +139,72 @@
     <view class="modal-card" catchtap="stopEvent">
       <view class="sheet-handle"></view>
       <view class="sheet-toolbar">
-        <button class="sheet-button" bindtap="hideCategoryCreator">取消</button>
-        <view class="modal-title">{{categoryEditorMode == 'create' ? '新建分类' : '编辑分类'}}</view>
-        <button class="sheet-button done" bindtap="saveCategoryEditor" disabled="{{!newCategoryName}}">完成</button>
+        <button class="sheet-button" bindtap="categorySheetBack">{{categoryEditorMode == 'manage' ? '取消' : '返回'}}</button>
+        <view class="modal-title">{{categoryEditorMode == 'manage' ? '管理分类' : (categoryEditorMode == 'create' ? '新建分类' : '编辑分类')}}</view>
+        <button class="sheet-button done" bindtap="categorySheetPrimary" disabled="{{categoryEditorMode != 'manage' && !newCategoryName}}">{{categoryEditorMode == 'manage' ? '新建' : '完成'}}</button>
       </view>
-      <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">分类颜色与图标会同步显示在地图上</view>
-      <view class="modal-copy" wx:else>修改名称、颜色和图标</view>
-      <input
-        class="category-input"
-        value="{{newCategoryName}}"
-        maxlength="8"
-        placeholder="输入分类名称"
-        focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
-        bindinput="onCategoryNameInput"
-        bindconfirm="saveCategoryEditor"
-      />
-      <view class="icon-picker-label">颜色</view>
-      <view class="color-picker-row">
-        <button
-          wx:for="{{categoryColorOptions}}"
-          wx:key="key"
-          class="color-option {{item.active ? 'active' : ''}}"
-          style="background: {{item.hex}}"
-          data-key="{{item.key}}"
-          bindtap="selectCategoryColor"
-          aria-label="{{item.name}}"
-        ><text wx:if="{{item.active}}">✓</text></button>
-      </view>
-      <view class="icon-picker-label">选择分类图标</view>
-      <scroll-view class="icon-picker-scroll" scroll-y="{{true}}" enhanced="{{true}}">
-        <view class="icon-picker-grid">
+      <block wx:if="{{categoryEditorMode == 'manage'}}">
+        <view class="modal-copy">点按分类即可修改名称、颜色和图标</view>
+        <scroll-view class="category-manager-scroll" scroll-y="{{true}}" enhanced="{{true}}">
           <button
-            wx:for="{{categoryIconOptions}}"
-            wx:key="key"
-            class="icon-option {{item.active ? 'active' : ''}}"
-            data-key="{{item.key}}"
-            bindtap="selectCategoryIcon"
-            aria-label="{{item.name}}"
+            wx:for="{{categoryManagerItems}}"
+            wx:key="id"
+            class="category-manager-row"
+            data-id="{{item.id}}"
+            bindtap="editCategoryFromManager"
           >
-            <image src="{{item.iconPath}}" mode="aspectFit" />
-            <text>{{item.name}}</text>
+            <view class="manager-icon" style="background: {{item.softColor}}">
+              <image src="{{item.iconPath}}" mode="aspectFit" />
+            </view>
+            <view class="manager-copy">
+              <view class="manager-name">{{item.name}}</view>
+              <view class="manager-count">{{item.countLabel}}</view>
+            </view>
+            <text class="manager-chevron">›</text>
           </button>
+        </scroll-view>
+      </block>
+      <block wx:else>
+        <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">分类颜色与图标会同步显示在地图上</view>
+        <view class="modal-copy" wx:else>修改后，已有地点的图钉会一起更新</view>
+        <input
+          class="category-input"
+          value="{{newCategoryName}}"
+          maxlength="8"
+          placeholder="输入分类名称"
+          focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
+          bindinput="onCategoryNameInput"
+          bindconfirm="saveCategoryEditor"
+        />
+        <view class="icon-picker-label">颜色</view>
+        <view class="color-picker-row">
+          <button
+            wx:for="{{categoryColorOptions}}"
+            wx:key="key"
+            class="color-option {{item.active ? 'active' : ''}}"
+            style="background: {{item.hex}}"
+            data-key="{{item.key}}"
+            bindtap="selectCategoryColor"
+            aria-label="{{item.name}}"
+          ><text wx:if="{{item.active}}">✓</text></button>
         </view>
-      </scroll-view>
+        <view class="icon-picker-label">选择分类图标</view>
+        <scroll-view class="icon-picker-scroll" scroll-y="{{true}}" enhanced="{{true}}">
+          <view class="icon-picker-grid">
+            <button
+              wx:for="{{categoryIconOptions}}"
+              wx:key="key"
+              class="icon-option {{item.active ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="selectCategoryIcon"
+              aria-label="{{item.name}}"
+            >
+              <image src="{{item.iconPath}}" mode="aspectFit" />
+              <text>{{item.name}}</text>
+            </button>
+          </view>
+        </scroll-view>
+      </block>
     </view>
   </view>
 </view>
