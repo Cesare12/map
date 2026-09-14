@@ -679,6 +679,11 @@
   font-size: 27rpx;
 }
 
+.category-editor-scroll {
+  height: 650rpx;
+  max-height: calc(86vh - 120rpx);
+}
+
 .color-picker-row {
   display: flex;
   justify-content: space-between;
@@ -711,16 +716,19 @@
   font-weight: 600;
 }
 
-.icon-picker-scroll {
-  height: 300rpx;
-  margin-top: 14rpx;
-}
-
 .icon-picker-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10rpx;
   padding: 2rpx;
+}
+
+.editor-icon-grid {
+  margin-top: 14rpx;
+}
+
+.editor-scroll-spacer {
+  height: 22rpx;
 }
 
 .icon-option {

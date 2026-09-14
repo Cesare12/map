@@ -252,8 +252,8 @@ Page({
       latitude: place.latitude,
       longitude: place.longitude,
       iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit),
-      width: place.selected ? 42 : 34,
-      height: place.selected ? 52 : 42,
+      width: place.selected ? 36 : 31,
+      height: place.selected ? 44 : 38,
       zIndex: place.selected ? 9 : 1,
       joinCluster: true,
       anchor: { x: 0.5, y: 1 }

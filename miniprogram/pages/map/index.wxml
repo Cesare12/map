@@ -165,32 +165,20 @@
         </scroll-view>
       </block>
       <block wx:else>
-        <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">分类颜色与图标会同步显示在地图上</view>
-        <view class="modal-copy" wx:else>修改后，已有地点的图钉会一起更新</view>
-        <input
-          class="category-input"
-          value="{{newCategoryName}}"
-          maxlength="8"
-          placeholder="输入分类名称"
-          focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
-          bindinput="onCategoryNameInput"
-          bindconfirm="saveCategoryEditor"
-        />
-        <view class="icon-picker-label">颜色</view>
-        <view class="color-picker-row">
-          <button
-            wx:for="{{categoryColorOptions}}"
-            wx:key="key"
-            class="color-option {{item.active ? 'active' : ''}}"
-            style="background: {{item.hex}}"
-            data-key="{{item.key}}"
-            bindtap="selectCategoryColor"
-            aria-label="{{item.name}}"
-          ><text wx:if="{{item.active}}">✓</text></button>
-        </view>
-        <view class="icon-picker-label">选择分类图标</view>
-        <scroll-view class="icon-picker-scroll" scroll-y="{{true}}" enhanced="{{true}}">
-          <view class="icon-picker-grid">
+        <scroll-view class="category-editor-scroll" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+          <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">名称、图标与颜色可以分别设置</view>
+          <view class="modal-copy" wx:else>修改后，已有地点的图钉会一起更新</view>
+          <input
+            class="category-input"
+            value="{{newCategoryName}}"
+            maxlength="8"
+            placeholder="输入分类名称"
+            focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
+            bindinput="onCategoryNameInput"
+            bindconfirm="saveCategoryEditor"
+          />
+          <view class="icon-picker-label">图标 · 12 种可选</view>
+          <view class="icon-picker-grid editor-icon-grid">
             <button
               wx:for="{{categoryIconOptions}}"
               wx:key="key"
@@ -203,6 +191,19 @@
               <text>{{item.name}}</text>
             </button>
           </view>
+          <view class="icon-picker-label">颜色 · 8 种可选</view>
+          <view class="color-picker-row">
+            <button
+              wx:for="{{categoryColorOptions}}"
+              wx:key="key"
+              class="color-option {{item.active ? 'active' : ''}}"
+              style="background: {{item.hex}}"
+              data-key="{{item.key}}"
+              bindtap="selectCategoryColor"
+              aria-label="{{item.name}}"
+            ><text wx:if="{{item.active}}">✓</text></button>
+          </view>
+          <view class="editor-scroll-spacer"></view>
         </scroll-view>
       </block>
     </view>
