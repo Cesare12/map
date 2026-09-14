@@ -1,5 +1,5 @@
 import { Category, Place, Snapshot, Visit } from "./types";
-import { normalizeCategoryIconKey, normalizeCategorySymbolText, normalizeCategorySymbolType } from "./category-icon";
+import { normalizeCategoryIconKey, categoryNameGlyph, normalizeCategorySymbolType } from "./category-icon";
 import { CATEGORY_COLOR_OPTIONS, categoryColor, normalizeCategoryColorKey } from "./category-color";
 
 const STORAGE_KEY = "want_to_go_map_snapshot_v1";
@@ -67,9 +67,9 @@ export function loadSnapshot(): Snapshot {
           return {
             ...item,
             iconKey: normalizeCategoryIconKey(item.iconKey || item.id),
-            symbolType: normalizeCategorySymbolType(item.symbolType),
+            symbolType: categoryNameGlyph(item.name) ? normalizeCategorySymbolType(item.symbolType) : "icon",
             symbolText: normalizeCategorySymbolType(item.symbolType) === "text"
-              ? normalizeCategorySymbolText(item.symbolText)
+              ? categoryNameGlyph(item.name)
               : "",
             colorKey,
             color: categoryColor(colorKey).hex
@@ -104,11 +104,11 @@ export function addCategory(
   iconKey = "other",
   colorKey?: string,
   symbolType: "icon" | "text" = "icon",
-  symbolText = "",
   emoji = "🏷️"
 ): Category {
   const snapshot = loadSnapshot();
   const trimmed = name.trim().slice(0, 8);
+  if (symbolType === "text" && !categoryNameGlyph(trimmed)) throw new Error("分类名称首字不支持文字标记");
   const duplicate = snapshot.categories.find((item) => item.name === trimmed);
   if (duplicate) return duplicate;
   const selectedColorKey = normalizeCategoryColorKey(
@@ -120,7 +120,7 @@ export function addCategory(
     emoji,
     iconKey: normalizeCategoryIconKey(iconKey),
     symbolType: normalizeCategorySymbolType(symbolType),
-    symbolText: normalizeCategorySymbolType(symbolType) === "text" ? normalizeCategorySymbolText(symbolText) : "",
+    symbolText: normalizeCategorySymbolType(symbolType) === "text" ? categoryNameGlyph(trimmed) : "",
     colorKey: selectedColorKey,
     color: categoryColor(selectedColorKey).hex,
     builtIn: false
@@ -135,18 +135,18 @@ export function setCategoryAppearance(
   name: string,
   iconKey: string,
   colorKey: string,
-  symbolType: "icon" | "text" = "icon",
-  symbolText = ""
+  symbolType: "icon" | "text" = "icon"
 ): Category | null {
   const snapshot = loadSnapshot();
   const category = snapshot.categories.find((item) => item.id === categoryId);
   if (!category) return null;
   const trimmed = name.trim().slice(0, 8);
   if (!trimmed || snapshot.categories.some((item) => item.id !== categoryId && item.name === trimmed)) return null;
+  if (symbolType === "text" && !categoryNameGlyph(trimmed)) return null;
   category.name = trimmed;
   category.iconKey = normalizeCategoryIconKey(iconKey);
   category.symbolType = normalizeCategorySymbolType(symbolType);
-  category.symbolText = category.symbolType === "text" ? normalizeCategorySymbolText(symbolText) : "";
+  category.symbolText = category.symbolType === "text" ? categoryNameGlyph(trimmed) : "";
   category.colorKey = normalizeCategoryColorKey(colorKey);
   category.color = categoryColor(category.colorKey).hex;
   saveSnapshot(snapshot);

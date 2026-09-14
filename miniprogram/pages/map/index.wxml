@@ -5,7 +5,10 @@
     longitude="{{mapLongitude}}"
     latitude="{{mapLatitude}}"
     scale="{{mapScale}}"
-    markers="{{fallbackMarkers}}"
+    markers="{{markers}}"
+    enable-rotate="{{false}}"
+    enable-overlooking="{{false}}"
+    max-scale="20"
     show-location="{{locationReady}}"
     bindtap="onMapTap"
     bindmarkertap="onMarkerTap"
@@ -149,7 +152,7 @@
       <view class="sheet-toolbar">
         <button class="sheet-button" bindtap="categorySheetBack">{{categoryEditorMode == 'manage' ? '取消' : '返回'}}</button>
         <view class="modal-title">{{categoryEditorMode == 'manage' ? '管理分类' : (categoryEditorMode == 'create' ? '新建分类' : '编辑分类')}}</view>
-        <button class="sheet-button done" bindtap="categorySheetPrimary" disabled="{{categoryEditorMode != 'manage' && !newCategoryName}}">{{categoryEditorMode == 'manage' ? '新建' : '完成'}}</button>
+        <button class="sheet-button done" bindtap="categorySheetPrimary">{{categoryEditorMode == 'manage' ? '新建' : '完成'}}</button>
       </view>
       <block wx:if="{{categoryEditorMode == 'manage'}}">
         <view class="modal-copy">点按分类即可修改名称、颜色和标记</view>
@@ -175,65 +178,54 @@
       </block>
       <block wx:else>
         <scroll-view class="category-editor-scroll" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
-          <view class="modal-copy" wx:if="{{categoryEditorMode == 'create'}}">名称、标记与颜色可以分别设置</view>
-          <view class="modal-copy" wx:else>修改后，已有地点的图钉会一起更新</view>
-          <input
-            class="category-input"
-            value="{{newCategoryName}}"
-            maxlength="8"
-            placeholder="输入分类名称"
-            focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
-            bindinput="onCategoryNameInput"
-            bindconfirm="saveCategoryEditor"
-          />
-          <view class="icon-picker-label">标记 · 图标或自定义文字</view>
-          <view class="icon-picker-grid editor-icon-grid">
-            <button
-              class="icon-option text-symbol-option {{newCategorySymbolType == 'text' ? 'active' : ''}}"
-              bindtap="selectCategoryTextMode"
-              aria-label="自定义文字"
-            >
-              <text class="text-symbol-sample">字</text>
-              <text>文字</text>
-            </button>
-            <button
-              wx:for="{{categoryIconOptions}}"
-              wx:key="key"
-              class="icon-option {{item.active ? 'active' : ''}}"
-              data-key="{{item.key}}"
-              bindtap="selectCategoryIcon"
-              aria-label="{{item.name}}"
-            >
-              <image src="{{item.iconPath}}" mode="aspectFit" />
-              <text>{{item.name}}</text>
-            </button>
+          <view class="category-form-row">
+            <view class="category-form-label">名称</view>
+            <input
+              class="category-input"
+              value="{{newCategoryName}}"
+              maxlength="8"
+              placeholder="分类名称"
+              aria-label="分类名称"
+              focus="{{categoryCreatorVisible && categoryEditorMode == 'create'}}"
+              bindinput="onCategoryNameInput"
+              bindconfirm="saveCategoryEditor"
+            />
           </view>
-          <view class="symbol-text-editor" wx:if="{{newCategorySymbolType == 'text'}}">
-            <view class="symbol-preview" style="border-color: {{newCategoryColor}}; color: {{newCategoryColor}}">
-              <text>{{newCategorySymbolText || '字'}}</text>
-            </view>
-            <view class="symbol-text-copy">
-              <input
-                class="symbol-text-input"
-                value="{{newCategorySymbolText}}"
-                maxlength="2"
-                placeholder="1个汉字或1–2个字母"
-                bindinput="onCategorySymbolTextInput"
-              />
-              <view class="symbol-text-help">由你决定显示什么，系统不会从分类名称自动猜字</view>
+          <view class="category-form-row">
+            <view class="category-form-label">图标</view>
+            <view class="icon-picker-grid">
+              <button
+                class="icon-option {{newCategorySymbolType == 'text' ? 'active' : ''}}"
+                bindtap="selectCategoryTextMode"
+                aria-label="文字标记，取分类名称首字"
+              >
+                <text class="text-symbol-sample" style="color: {{newCategoryColor}}">{{newCategorySymbolType == 'text' && newCategoryGlyph ? newCategoryGlyph : '字'}}</text>
+              </button>
+              <button
+                wx:for="{{categoryIconOptions}}"
+                wx:key="key"
+                class="icon-option {{item.active ? 'active' : ''}}"
+                data-key="{{item.key}}"
+                bindtap="selectCategoryIcon"
+                aria-label="{{item.name}}"
+              >
+                <image src="{{item.iconPath}}" mode="aspectFit" />
+              </button>
             </view>
           </view>
-          <view class="icon-picker-label">颜色 · 8 种可选</view>
-          <view class="color-picker-row">
-            <button
-              wx:for="{{categoryColorOptions}}"
-              wx:key="key"
-              class="color-option {{item.active ? 'active' : ''}}"
-              style="background: {{item.hex}}"
-              data-key="{{item.key}}"
-              bindtap="selectCategoryColor"
-              aria-label="{{item.name}}"
-            ><text wx:if="{{item.active}}">✓</text></button>
+          <view class="category-form-row">
+            <view class="category-form-label">颜色</view>
+            <view class="color-picker-row">
+              <button
+                wx:for="{{categoryColorOptions}}"
+                wx:key="key"
+                class="color-option {{item.active ? 'active' : ''}}"
+                style="background: {{item.hex}}"
+                data-key="{{item.key}}"
+                bindtap="selectCategoryColor"
+                aria-label="{{item.name}}"
+              ><text wx:if="{{item.active}}">✓</text></button>
+            </view>
           </view>
           <view class="editor-scroll-spacer"></view>
         </scroll-view>

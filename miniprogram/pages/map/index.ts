@@ -2,8 +2,9 @@ import { addCategory, exportSnapshotText, loadSnapshot, recordVisit, setCategory
 import { distanceMeters, formatDistance, isInsideRegion } from "../../utils/geo";
 import { formatVisitTime } from "../../utils/format";
 import { clusterIconPath, markerIconPath } from "../../utils/marker";
-import { CATEGORY_ICON_OPTIONS, categoryIconPath, normalizeCategorySymbolText, normalizeCategorySymbolType } from "../../utils/category-icon";
+import { CATEGORY_ICON_OPTIONS, categoryIconPath, categoryNameGlyph, normalizeCategorySymbolText, normalizeCategorySymbolType } from "../../utils/category-icon";
 import { CATEGORY_COLOR_OPTIONS, categoryColor } from "../../utils/category-color";
+import { clusterPlaces, clusterCenter, worldSizeFromRegion, MAX_MAP_SCALE } from "../../utils/clustering";
 import { Category, CurrentLocation, Place } from "../../utils/types";
 
 type StatusFilter = "all" | "want" | "visited";
@@ -47,7 +48,6 @@ Page({
     filteredPlaces: [] as PlaceView[],
     nearbyPlaces: [] as PlaceView[],
     markers: [] as any[],
-    fallbackMarkers: [] as any[],
     categories: [] as Category[],
     categoryTabs: [] as any[],
     statusTabs: [] as any[],
@@ -70,7 +70,7 @@ Page({
     newCategoryColorKey: "blue",
     newCategoryColor: "#0071E3",
     newCategorySymbolType: "icon" as "icon" | "text",
-    newCategorySymbolText: "",
+    newCategoryGlyph: "",
     categoryColorOptions: CATEGORY_COLOR_OPTIONS.map((item) => ({
       ...item,
       active: item.key === "blue"
@@ -87,75 +87,147 @@ Page({
   locationRequested: false,
   markerIdByPlaceId: new Map<string, number>(),
   nextMarkerId: 1,
-  markerClusterReady: false,
+  clusterMembers: new Map<number, PlaceView[]>(),
+  markerRenderRevision: 0,
+  mapWidth: 375,
+  currentMapScale: 12,
+  renderedWorldSize: 256 * Math.pow(2, 12),
 
   onReady() {
     this.mapContext = wx.createMapContext("mainMap", this);
-    if (this.mapContext && typeof this.mapContext.initMarkerCluster === "function") {
-      if (typeof this.mapContext.on === "function") {
-        this.mapContext.on("markerClusterCreate", (event: any) => this.renderMarkerClusters(event));
-      }
-      this.mapContext.initMarkerCluster({
-        enableDefaultStyle: false,
-        zoomOnClick: true,
-        gridSize: 72,
-        success: () => {
-          this.markerClusterReady = true;
-          this.setData({ fallbackMarkers: [] }, () => this.syncMapMarkers());
-        },
-        fail: () => this.setData({ fallbackMarkers: this.data.markers })
-      });
-    } else {
-      this.setData({ fallbackMarkers: this.data.markers });
-    }
+    this.syncMapMarkers();
+  },
+
+  onUnload() {
+    this.markerRenderRevision++;
+    this.mapContext = null;
   },
 
   syncMapMarkers() {
-    if (!this.markerClusterReady || !this.mapContext || typeof this.mapContext.addMarkers !== "function") return;
-    this.mapContext.addMarkers({
-      markers: this.data.markers,
-      clear: true,
-      fail: (error: any) => console.warn("同步聚合标记失败", error)
+    const revision = ++this.markerRenderRevision;
+    const context = this.mapContext;
+    if (!context) {
+      this.renderMapMarkers(this.renderedWorldSize);
+      return;
+    }
+    const readRegion = (scale: number) => {
+      if (revision !== this.markerRenderRevision) return;
+      const render = (worldSize: number) => {
+        if (revision !== this.markerRenderRevision) return;
+        this.renderedWorldSize = worldSize;
+        this.renderMapMarkers(worldSize);
+      };
+      const fallback = () => render(256 * Math.pow(2, scale));
+      if (typeof context.getRegion !== "function") return fallback();
+      context.getRegion({
+        success: (region: any) => {
+          const size = worldSizeFromRegion(
+            Number(region.southwest && region.southwest.longitude),
+            Number(region.northeast && region.northeast.longitude), this.mapWidth
+          );
+          if (size) render(size);
+          else fallback();
+        },
+        fail: fallback
+      });
+    };
+    if (typeof context.getScale !== "function") return readRegion(this.currentMapScale);
+    context.getScale({
+      success: (result: any) => {
+        if (revision !== this.markerRenderRevision) return;
+        const scale = Number(result.scale);
+        if (Number.isFinite(scale) && scale >= 3 && scale <= MAX_MAP_SCALE) {
+          // 记住手势缩放后的实际级别，点按聚合时从当前视野继续放大。
+          this.currentMapScale = scale;
+          readRegion(scale);
+        } else readRegion(this.currentMapScale);
+      },
+      fail: () => readRegion(this.currentMapScale)
     });
   },
 
-  renderMarkerClusters(event: any) {
-    if (!this.mapContext || typeof this.mapContext.addMarkers !== "function") return;
-    const clusters = event && Array.isArray(event.clusters) ? event.clusters : [];
-    const placesByMarkerId = new Map<number, PlaceView>(
-      (this.data.filteredPlaces as PlaceView[]).map((place) => [place.markerId, place])
-    );
-    const clusterMarkers = clusters.map((cluster: any) => {
-      const markerIds = Array.isArray(cluster.markerIds) ? cluster.markerIds.map(Number) : [];
-      const places = markerIds.map((id: number) => placesByMarkerId.get(id)).filter(Boolean) as PlaceView[];
+  renderMapMarkers(worldSize: number) {
+    const groups = clusterPlaces(this.data.filteredPlaces as PlaceView[], worldSize);
+    const clusterMembers = new Map<number, PlaceView[]>();
+    const markers = groups.map((places) => {
       const first = places[0];
-      const sameCategory = !!first && places.every((place) => place.categoryId === first.categoryId);
-      const countText = String(markerIds.length);
-      const center = cluster.center || {};
+      if (places.length === 1) return this.placeMarker(first);
+      const id = 100000000 + Math.min(...places.map((place) => place.markerId));
+      clusterMembers.set(id, places);
+      const sameCategory = places.every((place) => place.categoryId === first.categoryId);
+      const count = String(places.length);
       return {
-        id: 100000000 + Number(cluster.clusterId),
-        clusterId: Number(cluster.clusterId),
-        latitude: Number(center.latitude),
-        longitude: Number(center.longitude),
+        id,
+        ...clusterCenter(places),
         iconPath: clusterIconPath(sameCategory ? first.categoryColorKey : undefined),
         width: 40,
         height: 40,
         anchor: { x: 0.5, y: 0.5 },
         zIndex: 20,
         label: {
-          content: countText,
+          content: count,
           color: "#FFFFFF",
           fontSize: 14,
-          anchorX: countText.length === 1 ? -4 : countText.length === 2 ? -8 : -11,
+          anchorX: -count.length * 4,
           anchorY: -8,
           textAlign: "center"
         }
       };
-    }).filter((marker: any) => Number.isFinite(marker.latitude) && Number.isFinite(marker.longitude));
-    if (!clusterMarkers.length) return;
-    this.mapContext.addMarkers({
-      markers: clusterMarkers,
-      fail: (error: any) => console.warn("绘制聚合标记失败", error)
+    });
+    this.clusterMembers = clusterMembers;
+    // 唯一绘制通道：替换 map.markers 全量列表，拆分后不再保留任何旧聚合圆。
+    this.setData({ markers });
+  },
+
+  placeMarker(place: PlaceView) {
+    return {
+      id: place.markerId,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit, place.categoryUsesText),
+      width: place.selected ? 36 : 31,
+      height: place.selected ? 44 : 38,
+      zIndex: place.selected ? 9 : 1,
+      anchor: { x: 0.5, y: 1 },
+      ...(place.categoryUsesText ? {
+        label: {
+          content: place.categorySymbolText,
+          color: place.wantToVisit ? place.categoryColor : "#FFFFFF",
+          fontSize: place.selected ? 13 : 12,
+          anchorX: - (place.selected ? 6.5 : 6),
+          anchorY: place.selected ? -33 : -29,
+          textAlign: "center"
+        }
+      } : {})
+    };
+  },
+
+  openCluster(places: PlaceView[]) {
+    const center = clusterCenter(places);
+    const samePosition = places.every((place) =>
+      Math.abs(place.latitude - center.latitude) < 0.000001 &&
+      Math.abs(place.longitude - center.longitude) < 0.000001
+    );
+    if (samePosition || this.currentMapScale >= MAX_MAP_SCALE) {
+      this.showClusterPlaces(places, 0);
+      return;
+    }
+    this.setData({
+      mapLatitude: center.latitude,
+      mapLongitude: center.longitude,
+      mapScale: Math.min(MAX_MAP_SCALE, this.currentMapScale + 2)
+    });
+  },
+
+  showClusterPlaces(places: PlaceView[], offset: number) {
+    const visible = places.slice(offset, offset + 5);
+    const hasNext = offset + 5 < places.length;
+    wx.showActionSheet({
+      itemList: visible.map((place) => place.name).concat(hasNext ? ["更多地点…"] : []),
+      success: (result: any) => {
+        if (result.tapIndex === visible.length && hasNext) this.showClusterPlaces(places, offset + 5);
+        else if (visible[result.tapIndex]) this.selectPlace(visible[result.tapIndex].id, false);
+      }
     });
   },
 
@@ -169,6 +241,7 @@ Page({
     try {
       const info = typeof wx.getWindowInfo === "function" ? wx.getWindowInfo() : wx.getSystemInfoSync();
       const menu = wx.getMenuButtonBoundingClientRect();
+      this.mapWidth = Number(info.windowWidth) || 375;
       this.setData({
         safeTop: Math.max(Number(info.statusBarHeight) || 20, Number(menu.top) || 0),
         capsuleReserve: Math.max(88, Number(info.windowWidth) - Number(menu.left) + 8),
@@ -319,28 +392,6 @@ Page({
       return a.distance - b.distance;
     });
 
-    const markers = views.map((place) => ({
-      id: place.markerId,
-      latitude: place.latitude,
-      longitude: place.longitude,
-      iconPath: markerIconPath(place.categoryIconKey, place.categoryColorKey, place.wantToVisit, place.categoryUsesText),
-      width: place.selected ? 36 : 31,
-      height: place.selected ? 44 : 38,
-      zIndex: place.selected ? 9 : 1,
-      joinCluster: true,
-      anchor: { x: 0.5, y: 1 },
-      ...(place.categoryUsesText ? {
-        label: {
-          content: place.categorySymbolText,
-          color: place.wantToVisit ? place.categoryColor : "#FFFFFF",
-          fontSize: place.selected ? 13 : 12,
-          anchorX: place.categorySymbolText.length === 1 ? (place.selected ? -4 : -3) : (place.selected ? -8 : -7),
-          anchorY: place.selected ? -33 : -29,
-          textAlign: "center"
-        }
-      } : {})
-    }));
-
     const categoryTabs = [
       {
         id: "all",
@@ -402,8 +453,6 @@ Page({
     this.setData({
       filteredPlaces: views,
       nearbyPlaces: nearby,
-      markers,
-      fallbackMarkers: this.markerClusterReady ? [] : markers,
       categoryTabs,
       statusTabs,
       categoryManagerItems,
@@ -429,6 +478,11 @@ Page({
 
   onMarkerTap(event: any) {
     if (this.data.manualPinMode) return;
+    const cluster = this.clusterMembers.get(Number(event.detail.markerId));
+    if (cluster) {
+      this.openCluster(cluster);
+      return;
+    }
     const place = (this.data.filteredPlaces as PlaceView[]).find((item) => item.markerId === event.detail.markerId);
     if (place) this.selectPlace(place.id, false);
   },
@@ -442,7 +496,7 @@ Page({
     const position = center && place ? {
       mapLatitude: place.latitude,
       mapLongitude: place.longitude,
-      mapScale: Math.max(14, this.data.mapScale)
+      mapScale: Math.max(14, this.currentMapScale)
     } : {};
     this.setData({ selectedPlaceId: id, ...position }, () => this.applyFilters());
   },
@@ -574,7 +628,14 @@ Page({
   },
 
   onRegionChange(event: any) {
-    if (event.type === "end") this.updateViewportCount();
+    const phase = event.detail && event.detail.type || event.type;
+    if (phase === "begin") this.markerRenderRevision++;
+    if (phase === "end") {
+      const scale = Number(event.detail && event.detail.scale);
+      if (Number.isFinite(scale) && scale >= 3 && scale <= MAX_MAP_SCALE) this.currentMapScale = scale;
+      this.syncMapMarkers();
+      this.updateViewportCount();
+    }
   },
 
   updateViewportCount() {
@@ -606,7 +667,7 @@ Page({
       newCategoryIconKey: "other",
       newCategoryColorKey: "blue",
       newCategorySymbolType: "icon",
-      newCategorySymbolText: ""
+      newCategoryGlyph: ""
     }, () => {
       this.refreshCategoryColorOptions();
       this.refreshCategoryIconOptions();
@@ -633,7 +694,7 @@ Page({
       newCategoryIconKey: category.iconKey,
       newCategoryColorKey: category.colorKey,
       newCategorySymbolType: normalizeCategorySymbolType(category.symbolType),
-      newCategorySymbolText: normalizeCategorySymbolText(category.symbolText)
+      newCategoryGlyph: categoryNameGlyph(category.name)
     }, () => {
       this.refreshCategoryColorOptions();
       this.refreshCategoryIconOptions();
@@ -656,7 +717,7 @@ Page({
       newCategoryIconKey: category.iconKey,
       newCategoryColorKey: category.colorKey,
       newCategorySymbolType: normalizeCategorySymbolType(category.symbolType),
-      newCategorySymbolText: normalizeCategorySymbolText(category.symbolText)
+      newCategoryGlyph: categoryNameGlyph(category.name)
     }, () => {
       this.refreshCategoryColorOptions();
       this.refreshCategoryIconOptions();
@@ -715,10 +776,6 @@ Page({
     this.setData({ newCategorySymbolType: "text" }, () => this.refreshCategoryIconOptions());
   },
 
-  onCategorySymbolTextInput(event: any) {
-    this.setData({ newCategorySymbolText: event.detail.value });
-  },
-
   selectCategoryColor(event: any) {
     this.setData({ newCategoryColorKey: event.currentTarget.dataset.key }, () => {
       this.refreshCategoryColorOptions();
@@ -727,7 +784,7 @@ Page({
   },
 
   onCategoryNameInput(event: any) {
-    this.setData({ newCategoryName: event.detail.value });
+    this.setData({ newCategoryName: event.detail.value, newCategoryGlyph: categoryNameGlyph(event.detail.value) });
   },
 
   saveCategoryEditor() {
@@ -744,9 +801,9 @@ Page({
       return;
     }
     const symbolType = this.data.newCategorySymbolType as "icon" | "text";
-    const symbolText = symbolType === "text" ? normalizeCategorySymbolText(this.data.newCategorySymbolText) : "";
+    const symbolText = symbolType === "text" ? categoryNameGlyph(name) : "";
     if (symbolType === "text" && !symbolText) {
-      wx.showToast({ title: "请输入1个汉字或1–2个字母", icon: "none" });
+      wx.showToast({ title: "名称首字需为汉字、字母或数字", icon: "none" });
       return;
     }
     if (this.data.categoryEditorMode === "edit") {
@@ -755,8 +812,7 @@ Page({
         name,
         this.data.newCategoryIconKey,
         this.data.newCategoryColorKey,
-        symbolType,
-        symbolText
+        symbolType
       );
       if (!category) return;
       this.hideCategoryCreator();
@@ -764,7 +820,7 @@ Page({
       wx.showToast({ title: "分类已更新", icon: "success" });
       return;
     }
-    const category = addCategory(name, this.data.newCategoryIconKey, this.data.newCategoryColorKey, symbolType, symbolText);
+    const category = addCategory(name, this.data.newCategoryIconKey, this.data.newCategoryColorKey, symbolType);
     this.hideCategoryCreator();
     this.loadData();
     this.setData({ selectedCategoryId: category.id }, () => this.applyFilters());

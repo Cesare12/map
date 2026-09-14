@@ -38,7 +38,7 @@ export function normalizeCategorySymbolText(value: unknown): string {
   const compact = Array.from(typeof value === "string" ? value.trim().replace(/\s+/g, "") : "");
   if (compact.length === 1 || compact.length === 2) {
     const candidate = compact.join("");
-    if (/^[A-Za-z0-9]{1,2}$/.test(candidate)) return candidate.toUpperCase();
+    if (/^[A-Za-z0-9]{1,2}$/.test(candidate)) return candidate;
   }
   if (compact.length === 1) {
     const first = compact[0];
@@ -46,4 +46,9 @@ export function normalizeCategorySymbolText(value: unknown): string {
     if (code >= 0x3400 && code <= 0x9fff) return first;
   }
   return "";
+}
+
+export function categoryNameGlyph(name: unknown): string {
+  const first = Array.from(typeof name === "string" ? name.trim() : "")[0] || "";
+  return normalizeCategorySymbolText(first);
 }
