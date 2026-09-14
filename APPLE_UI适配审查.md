@@ -33,7 +33,7 @@
 - 相互压盖的地点会使用带数量的聚合标记；缩放放大或点按聚合标记后自动拆开，符合 Apple Maps 对高密度兴趣点的建议。
 - 普通图钉为 31×38，选中图钉为 36×44。Apple 没有规定第三方地图标记的固定尺寸，本项目保持地图内容优先，只用小幅放大表达选中状态。
 - 分类栏末尾始终显示“管理”，用户无需先选中某个分类即可进入列表，修改已有分类的名称、颜色、图标或文字标记。
-- 聚合按当前视野换算屏幕像素，最近点对优先；同一簇内任意两点的距离均不超过 72px。簇内地点属于同一分类时沿用该分类颜色，包含多个分类时使用 Apple 系统中性灰，避免用任意一个分类误导用户。
+- 聚合按当前视野换算屏幕像素，新点在 48px 内按最近点对优先合并；已合并地点超过 56px 才拆开，48–56px 保持原状态。任意两点均需满足对应阈值，避免链式吸入远点。簇内地点属于同一分类时沿用该分类颜色，包含多个分类时使用 Apple 系统中性灰，避免用任意一个分类误导用户。
 - 分类编辑固定三个区域：名称、图标、颜色。图标选项只显示图案；选择“字”后取分类名称首字，点击完成时检查首字是否为汉字、字母或数字。旧文字分类也按名称首字显示，改名同步更新。
 - 添加地点同时提供地图搜索和自由选点。自由选点直接保存 GCJ-02 经纬度和用户填写的店名，不依赖底图 POI 是否收录。
 
@@ -41,7 +41,10 @@
 
 - 微信 `map` 组件与腾讯位置服务使用同一数据体系，并支持地图展示、POI 与坐标交互。
 - 本项目不再调用原生聚合器。通过 `MapContext.getScale`、`getRegion` 读取当前缩放与视野范围，以屏幕距离计算分组；统一替换 `map.markers`，使拆分、筛选或删除时旧圆被移除。异步请求使用版本号，过期缩放结果不能覆盖新视野。地图固定不旋转、不倾斜，以保证视野与屏幕距离换算一致。
-- 点按聚合放大两级；最高级别仍重叠或地点完全同坐标时，展示地点选择菜单。
+- 点按聚合始终打开地点列表 Sheet；列表内可以直接选店，也可用“放大”按钮放大两级。最高缩放级别禁用放大，仍可选择同坐标地点。
+- 缩放结束后的分组合并/拆分使用约 200ms 的原生 `MapContext.moveAlong` 位移动画。合并时来源标记向中心靠拢，拆分时目标标记从旧中心展开。单次超过 80 个移动标记、API 不可用或调用失败时直接显示最终结果。
+- 动画使用独立的临时 ID，结束后全量替换为正式标记；新手势、筛选、页面隐藏可立即移除临时标记。版本校验和 350ms 兜底保证迟到或丢失的回调不会让旧图钉复现。真实地点坐标不参与修改。
+- 动画与阈值为本项目参数，非 Apple 固定标准；遵循 HIG 简短、清晰、可打断的动效原则。手机原生绘制、文字标签跟随和不同设备流畅度需真机验证。
 - `map` 的点击事件从基础库 2.9.0 起返回经纬度；本项目基础库为 3.10.0。
 
 ## Apple 官方依据
@@ -56,3 +59,6 @@
 - WeChat map component: https://developers.weixin.qq.com/miniprogram/dev/component/map.html
 - WeChat map region: https://developers.weixin.qq.com/miniprogram/dev/api/media/map/MapContext.getRegion.html
 - WeChat map scale: https://developers.weixin.qq.com/miniprogram/dev/api/media/map/MapContext.getScale.html
+
+- WeChat marker motion: https://developers.weixin.qq.com/miniprogram/dev/api/media/map/MapContext.moveAlong.html
+- Apple motion: https://developer.apple.com/design/human-interface-guidelines/motion

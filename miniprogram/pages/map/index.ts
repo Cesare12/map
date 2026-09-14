@@ -5,6 +5,7 @@ import { clusterIconPath, markerIconPath } from "../../utils/marker";
 import { CATEGORY_ICON_OPTIONS, categoryIconPath, categoryNameGlyph, normalizeCategorySymbolText, normalizeCategorySymbolType } from "../../utils/category-icon";
 import { CATEGORY_COLOR_OPTIONS, categoryColor } from "../../utils/category-color";
 import { clusterPlaces, clusterCenter, worldSizeFromRegion, MAX_MAP_SCALE } from "../../utils/clustering";
+import { MarkerGroup, MARKER_TRANSITION_MS, planMarkerTransition } from "../../utils/marker-transition";
 import { Category, CurrentLocation, Place } from "../../utils/types";
 
 type StatusFilter = "all" | "want" | "visited";
@@ -48,6 +49,9 @@ Page({
     filteredPlaces: [] as PlaceView[],
     nearbyPlaces: [] as PlaceView[],
     markers: [] as any[],
+    clusterSheetVisible: false,
+    clusterSheetPlaces: [] as PlaceView[],
+    clusterCanZoom: true,
     categories: [] as Category[],
     categoryTabs: [] as any[],
     statusTabs: [] as any[],
@@ -89,6 +93,14 @@ Page({
   nextMarkerId: 1,
   clusterMembers: new Map<number, PlaceView[]>(),
   markerRenderRevision: 0,
+  renderedGroups: [] as MarkerGroup[],
+  finalMarkers: [] as any[],
+  transitionRevision: 0,
+  transitionActive: false,
+  transitionTimer: null as any,
+  transitionFinishTimer: null as any,
+  nextTransitionMarkerId: 200000000,
+  transitionTapTargets: new Map<number, number>(),
   mapWidth: 375,
   currentMapScale: 12,
   renderedWorldSize: 256 * Math.pow(2, 12),
@@ -98,12 +110,19 @@ Page({
     this.syncMapMarkers();
   },
 
+  onHide() {
+    this.markerRenderRevision++;
+    this.cancelMarkerTransition();
+  },
+
   onUnload() {
+    this.cancelMarkerTransition(false);
     this.markerRenderRevision++;
     this.mapContext = null;
   },
 
-  syncMapMarkers() {
+  syncMapMarkers(animate = false) {
+    this.cancelMarkerTransition();
     const revision = ++this.markerRenderRevision;
     const context = this.mapContext;
     if (!context) {
@@ -115,7 +134,7 @@ Page({
       const render = (worldSize: number) => {
         if (revision !== this.markerRenderRevision) return;
         this.renderedWorldSize = worldSize;
-        this.renderMapMarkers(worldSize);
+        this.renderMapMarkers(worldSize, animate);
       };
       const fallback = () => render(256 * Math.pow(2, scale));
       if (typeof context.getRegion !== "function") return fallback();
@@ -146,8 +165,10 @@ Page({
     });
   },
 
-  renderMapMarkers(worldSize: number) {
-    const groups = clusterPlaces(this.data.filteredPlaces as PlaceView[], worldSize);
+  renderMapMarkers(worldSize: number, animate = false) {
+    this.cancelMarkerTransition();
+    const previous = this.renderedGroups;
+    const groups = clusterPlaces(this.data.filteredPlaces as PlaceView[], worldSize, previous.map((group) => group.members));
     const clusterMembers = new Map<number, PlaceView[]>();
     const markers = groups.map((places) => {
       const first = places[0];
@@ -162,21 +183,86 @@ Page({
         iconPath: clusterIconPath(sameCategory ? first.categoryColorKey : undefined),
         width: 40,
         height: 40,
-        anchor: { x: 0.5, y: 0.5 },
+        anchor: { x: 0.5, y: 1 },
         zIndex: 20,
         label: {
           content: count,
           color: "#FFFFFF",
           fontSize: 14,
           anchorX: -count.length * 4,
-          anchorY: -8,
+          anchorY: -28,
           textAlign: "center"
         }
       };
     });
     this.clusterMembers = clusterMembers;
-    // 唯一绘制通道：替换 map.markers 全量列表，拆分后不再保留任何旧聚合圆。
-    this.setData({ markers });
+    const next = groups.map((places, index) => ({ members: places.map((place) => place.markerId), marker: markers[index] }));
+    this.renderedGroups = next;
+    this.finalMarkers = markers;
+    const plan = planMarkerTransition(previous, next);
+    if (animate && previous.length && plan.hasMotion && plan.moves.length <= 80 &&
+        this.mapContext && typeof this.mapContext.moveAlong === "function") {
+      this.animateMarkerTransition(plan);
+    } else {
+      this.setData({ markers });
+    }
+  },
+
+  cancelMarkerTransition(commit = true) {
+    this.transitionRevision++;
+    if (this.transitionTimer !== null) clearTimeout(this.transitionTimer);
+    if (this.transitionFinishTimer !== null) clearTimeout(this.transitionFinishTimer);
+    this.transitionTimer = null;
+    this.transitionFinishTimer = null;
+    const wasActive = this.transitionActive;
+    this.transitionActive = false;
+    this.transitionTapTargets = new Map<number, number>();
+    // 移除专用临时 ID 即可终止其显示；旧原生动画和回调不能影响新的正式标记。
+    if (commit && wasActive) this.setData({ markers: this.finalMarkers });
+  },
+
+  animateMarkerTransition(plan: ReturnType<typeof planMarkerTransition>) {
+    const revision = ++this.transitionRevision;
+    this.transitionActive = true;
+    const moves = plan.moves.map((move) => ({
+      ...move, marker: { ...move.marker, id: this.nextTransitionMarkerId++ }
+    }));
+    this.transitionTapTargets = new Map(moves.map((move) => [move.marker.id, move.targetId]));
+    const finish = () => {
+      if (revision !== this.transitionRevision) return;
+      this.cancelMarkerTransition();
+    };
+    this.setData({ markers: plan.staticMarkers.concat(moves.map((move) => move.marker)) }, () => {
+      if (revision !== this.transitionRevision) return;
+      const startedAt = Date.now();
+      let remaining = moves.length;
+      // 原生回调丢失时仍收敛到正式标记，避免临时图钉残留。
+      this.transitionTimer = setTimeout(finish, MARKER_TRANSITION_MS + 150);
+      for (const move of moves) {
+        if (revision !== this.transitionRevision) break;
+        try {
+          this.mapContext.moveAlong({
+            markerId: move.marker.id,
+            path: [
+              { latitude: move.marker.latitude, longitude: move.marker.longitude },
+              move.destination
+            ],
+            autoRotate: false,
+            duration: MARKER_TRANSITION_MS,
+            success: () => {
+              if (revision !== this.transitionRevision) return;
+              remaining--;
+              if (remaining === 0) {
+                this.transitionFinishTimer = setTimeout(finish, Math.max(0, MARKER_TRANSITION_MS - (Date.now() - startedAt)));
+              }
+            },
+            fail: finish
+          });
+        } catch (_) {
+          finish();
+        }
+      }
+    });
   },
 
   placeMarker(place: PlaceView) {
@@ -203,31 +289,33 @@ Page({
   },
 
   openCluster(places: PlaceView[]) {
+    this.cancelMarkerTransition();
+    this.setData({
+      clusterSheetVisible: true,
+      clusterSheetPlaces: places,
+      clusterCanZoom: this.currentMapScale < MAX_MAP_SCALE
+    });
+  },
+
+  closeClusterSheet() {
+    this.setData({ clusterSheetVisible: false, clusterSheetPlaces: [] });
+  },
+
+  selectClusterPlace(event: any) {
+    const id = event.currentTarget.dataset.id;
+    this.closeClusterSheet();
+    this.selectPlace(id, false);
+  },
+
+  zoomCluster() {
+    const places = this.data.clusterSheetPlaces as PlaceView[];
+    if (!places.length || this.currentMapScale >= MAX_MAP_SCALE) return;
     const center = clusterCenter(places);
-    const samePosition = places.every((place) =>
-      Math.abs(place.latitude - center.latitude) < 0.000001 &&
-      Math.abs(place.longitude - center.longitude) < 0.000001
-    );
-    if (samePosition || this.currentMapScale >= MAX_MAP_SCALE) {
-      this.showClusterPlaces(places, 0);
-      return;
-    }
+    this.closeClusterSheet();
     this.setData({
       mapLatitude: center.latitude,
       mapLongitude: center.longitude,
       mapScale: Math.min(MAX_MAP_SCALE, this.currentMapScale + 2)
-    });
-  },
-
-  showClusterPlaces(places: PlaceView[], offset: number) {
-    const visible = places.slice(offset, offset + 5);
-    const hasNext = offset + 5 < places.length;
-    wx.showActionSheet({
-      itemList: visible.map((place) => place.name).concat(hasNext ? ["更多地点…"] : []),
-      success: (result: any) => {
-        if (result.tapIndex === visible.length && hasNext) this.showClusterPlaces(places, offset + 5);
-        else if (visible[result.tapIndex]) this.selectPlace(visible[result.tapIndex].id, false);
-      }
     });
   },
 
@@ -338,6 +426,7 @@ Page({
   },
 
   applyFilters() {
+    this.cancelMarkerTransition();
     const categoryId = this.data.selectedCategoryId;
     const status = this.data.selectedStatus as StatusFilter;
     const categories = this.data.categories as Category[];
@@ -451,6 +540,8 @@ Page({
       };
     });
     this.setData({
+      clusterSheetVisible: false,
+      clusterSheetPlaces: [],
       filteredPlaces: views,
       nearbyPlaces: nearby,
       categoryTabs,
@@ -478,12 +569,15 @@ Page({
 
   onMarkerTap(event: any) {
     if (this.data.manualPinMode) return;
-    const cluster = this.clusterMembers.get(Number(event.detail.markerId));
+    const tappedId = Number(event.detail.markerId);
+    const markerId = this.transitionTapTargets.get(tappedId) || tappedId;
+    this.cancelMarkerTransition();
+    const cluster = this.clusterMembers.get(markerId);
     if (cluster) {
       this.openCluster(cluster);
       return;
     }
-    const place = (this.data.filteredPlaces as PlaceView[]).find((item) => item.markerId === event.detail.markerId);
+    const place = (this.data.filteredPlaces as PlaceView[]).find((item) => item.markerId === markerId);
     if (place) this.selectPlace(place.id, false);
   },
 
@@ -629,11 +723,14 @@ Page({
 
   onRegionChange(event: any) {
     const phase = event.detail && event.detail.type || event.type;
-    if (phase === "begin") this.markerRenderRevision++;
+    if (phase === "begin") {
+      this.markerRenderRevision++;
+      this.cancelMarkerTransition();
+    }
     if (phase === "end") {
       const scale = Number(event.detail && event.detail.scale);
       if (Number.isFinite(scale) && scale >= 3 && scale <= MAX_MAP_SCALE) this.currentMapScale = scale;
-      this.syncMapMarkers();
+      this.syncMapMarkers(true);
       this.updateViewportCount();
     }
   },

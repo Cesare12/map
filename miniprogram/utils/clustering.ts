@@ -1,4 +1,5 @@
-export const CLUSTER_DISTANCE_PX = 72;
+export const CLUSTER_MERGE_PX = 48;
+export const CLUSTER_SPLIT_PX = 56;
 export const MAX_MAP_SCALE = 20;
 
 interface Point {
@@ -26,11 +27,16 @@ export function worldSizeFromRegion(west: number, east: number, width: number): 
 }
 
 /** 最近的点对优先合并，且同一簇内任意两点都必须在阈值内，避免链式吸入远处地点。 */
-export function clusterPlaces<T extends Point>(points: T[], worldSize: number, threshold = CLUSTER_DISTANCE_PX): T[][] {
+export function clusterPlaces<T extends Point>(points: T[], worldSize: number, previousGroups: number[][] = []): T[][] {
   const sorted = points.slice().sort((a, b) => a.markerId - b.markerId);
+  const previousOwner = new Map<number, number>();
+  previousGroups.forEach((group, index) => group.forEach((id) => previousOwner.set(id, index)));
+  const wereTogether = (a: number, b: number) => previousOwner.has(sorted[a].markerId) &&
+    previousOwner.get(sorted[a].markerId) === previousOwner.get(sorted[b].markerId);
+  const limitSquared = (a: number, b: number) => Math.pow(wereTogether(a, b) ? CLUSTER_SPLIT_PX : CLUSTER_MERGE_PX, 2);
   const positions = sorted.map(projectPoint);
   const distances: number[][] = sorted.map(() => []);
-  const edges: { a: number; b: number; distance: number }[] = [];
+  const edges: { a: number; b: number; distance: number; existing: boolean }[] = [];
   for (let a = 0; a < sorted.length; a++) {
     for (let b = a + 1; b < sorted.length; b++) {
       const deltaX = Math.abs(positions[a].x - positions[b].x);
@@ -38,17 +44,18 @@ export function clusterPlaces<T extends Point>(points: T[], worldSize: number, t
       const dy = (positions[a].y - positions[b].y) * worldSize;
       const distance = dx * dx + dy * dy;
       distances[a][b] = distances[b][a] = distance;
-      if (distance <= threshold * threshold) edges.push({ a, b, distance });
+      if (distance <= limitSquared(a, b)) edges.push({ a, b, distance, existing: wereTogether(a, b) });
     }
   }
-  edges.sort((a, b) => a.distance - b.distance || a.a - b.a || a.b - b.b);
+  // 优先保留仍在拆分阈值内的旧组，再将新近点按距离合并，减少组成员来回跳动。
+  edges.sort((a, b) => Number(b.existing) - Number(a.existing) || a.distance - b.distance || a.a - b.a || a.b - b.b);
   const owner = sorted.map((_, index) => index);
   const members = sorted.map((_, index) => [index]);
   for (const edge of edges) {
     const a = owner[edge.a];
     const b = owner[edge.b];
     if (a === b) continue;
-    if (!members[a].every((left) => members[b].every((right) => distances[left][right] <= threshold * threshold))) continue;
+    if (!members[a].every((left) => members[b].every((right) => distances[left][right] <= limitSquared(left, right)))) continue;
     members[b].forEach((index) => { owner[index] = a; });
     members[a].push(...members[b]);
     members[b] = [];

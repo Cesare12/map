@@ -146,6 +146,36 @@
     </view>
   </view>
 
+  <view class="modal-mask" wx:if="{{clusterSheetVisible}}" bindtap="closeClusterSheet">
+    <view class="modal-card" catchtap="stopEvent">
+      <view class="sheet-handle"></view>
+      <view class="sheet-toolbar">
+        <button class="sheet-button" bindtap="closeClusterSheet">关闭</button>
+        <view class="modal-title">{{clusterSheetPlaces.length}} 个地点</view>
+        <button class="sheet-button" bindtap="zoomCluster" disabled="{{!clusterCanZoom}}">放大</button>
+      </view>
+      <scroll-view class="category-manager-scroll" scroll-y="{{true}}" enhanced="{{true}}">
+        <button
+          wx:for="{{clusterSheetPlaces}}"
+          wx:key="id"
+          class="category-manager-row"
+          data-id="{{item.id}}"
+          bindtap="selectClusterPlace"
+        >
+          <view class="manager-icon" style="background: {{item.categorySoftColor}}; color: {{item.categoryColor}}">
+            <text class="category-symbol-text" wx:if="{{item.categoryUsesText}}">{{item.categorySymbolText}}</text>
+            <image src="{{item.categoryIconPath}}" mode="aspectFit" wx:else />
+          </view>
+          <view class="manager-copy">
+            <view class="manager-name">{{item.name}}</view>
+            <view class="manager-count">{{item.categoryName}} · {{item.lifecycleLabel}} · {{item.distanceLabel}}</view>
+          </view>
+          <text class="manager-chevron">›</text>
+        </button>
+      </scroll-view>
+    </view>
+  </view>
+
   <view class="modal-mask" wx:if="{{categoryCreatorVisible}}" bindtap="hideCategoryCreator">
     <view class="modal-card" catchtap="stopEvent">
       <view class="sheet-handle"></view>
